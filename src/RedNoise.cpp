@@ -7,13 +7,24 @@
 #define WIDTH 320
 #define HEIGHT 240
 
+std::vector<float> interpolateSingleFloats(float from, float to, float numberOfValues) {
+	std::vector<float> fade;
+	float step = (to-from) / (numberOfValues -1);
+	for (float val=from; val<=to+step; val+=step) {
+		fade.push_back(val);
+	}
+
+	return fade; 
+}
+
 void draw(DrawingWindow &window) {
 	window.clearPixels();
+	std::vector<float> scale = interpolateSingleFloats(0,255,window.width);
 	for (size_t y = 0; y < window.height; y++) {
 		for (size_t x = 0; x < window.width; x++) {
-			float red = rand() % 256;
-			float green = 0.0;
-			float blue = 0.0;
+			float red = scale.at(window.width - (x+1));
+			float green = scale.at(window.width - (x+1));
+			float blue = scale.at(window.width - (x+1));
 			uint32_t colour = (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
 			window.setPixelColour(x, y, colour);
 		}
@@ -32,9 +43,14 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 	}
 }
 
+
 int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
+	std::vector<float> result;
+	result = interpolateSingleFloats(2.2, 8.5, 7);
+	for(size_t i=0; i<result.size(); i++) std::cout << result[i] << " ";
+	std::cout << std::endl;
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
