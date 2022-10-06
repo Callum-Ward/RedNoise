@@ -1,12 +1,14 @@
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
 #include <CanvasPoint.h>
+#include <CanvasTriangle.h>
 #include <Colour.h>
 #include <glm/glm.hpp>
 #include <Utils.h>
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <stdlib.h> 
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -26,10 +28,7 @@ std::vector<glm::vec3> interpolateThreeElementValues(glm::vec3 from, glm::vec3 t
 	return fade; 
 }
 
-float max(float x,float y){return (x>y)?x:y;}
-
 void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour) {
-	window.clearPixels();
 	float xDiff = to.x-from.x;
 	float yDiff = to.y-from.y;
 	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
@@ -43,6 +42,13 @@ void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour co
 		window.setPixelColour(round(x),round(y), colour_32);
 	}
 
+}
+
+void drawTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
+	//window.clearPixels();
+	drawLine(window,triangle.v0(),triangle.v1(),colour);
+	drawLine(window,triangle.v1(),triangle.v2(),colour);
+	drawLine(window,triangle.v2(),triangle.v0(),colour);
 }
 
 void draw(DrawingWindow &window) {
@@ -73,6 +79,15 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 		else if (event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
 		else if (event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
 		else if (event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
+		else if (event.key.keysym.sym == SDLK_u) {
+			std::cout << "u" << std::endl;
+			Colour triangleColour = Colour(rand()%255,rand()%255,rand()%255);
+			CanvasPoint v0 = CanvasPoint(rand()%window.width,rand()%window.height);
+			CanvasPoint v1 = CanvasPoint(rand()%window.width,rand()%window.height);
+			CanvasPoint v2 = CanvasPoint(rand()%window.width,rand()%window.height);
+			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
+			drawTriangle(window, triangle,triangleColour);
+		}
 	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 		window.savePPM("output.ppm");
 		window.saveBMP("output.bmp");
@@ -84,26 +99,11 @@ int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
 
-	Colour lineColour = Colour(255,0,0);
-	CanvasPoint from = CanvasPoint(0,0);
-	CanvasPoint to = CanvasPoint(round(window.width/2),round(window.height/2));
-	drawLine(window,from,to,lineColour);
-
-
-	lineColour = Colour(0,255,0);
-	from = CanvasPoint(round(window.width/2),0);
-	to = CanvasPoint(round(window.width/2),window.height);
-	drawLine(window,from,to,lineColour);
-
-	lineColour = Colour(0,0,255);
-	from = CanvasPoint(round(window.width/2)-round(window.width/6),round(window.height/2));
-	to = CanvasPoint(round(window.width/2)+round(window.width/6),round(window.height/2));
-
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
-		drawLine(window,from,to,lineColour);
+		
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
