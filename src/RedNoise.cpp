@@ -1,9 +1,12 @@
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
+#include <CanvasPoint.h>
+#include <Colour.h>
 #include <glm/glm.hpp>
 #include <Utils.h>
 #include <fstream>
 #include <vector>
+#include <cmath>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -21,6 +24,25 @@ std::vector<glm::vec3> interpolateThreeElementValues(glm::vec3 from, glm::vec3 t
 	}
 
 	return fade; 
+}
+
+float max(float x,float y){return (x>y)?x:y;}
+
+void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour) {
+	window.clearPixels();
+	float xDiff = to.x-from.x;
+	float yDiff = to.y-from.y;
+	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
+	float xStepSize = xDiff / numberOfSteps;
+	float yStepSize = yDiff / numberOfSteps;
+	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+	for (float i = 0; i < numberOfSteps; i++)
+	{
+		float x = from.x + xStepSize*i;
+		float y = from.y + yStepSize*i;
+		window.setPixelColour(round(x),round(y), colour_32);
+	}
+
 }
 
 void draw(DrawingWindow &window) {
@@ -61,11 +83,27 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
-	
+
+	Colour lineColour = Colour(255,0,0);
+	CanvasPoint from = CanvasPoint(0,0);
+	CanvasPoint to = CanvasPoint(round(window.width/2),round(window.height/2));
+	drawLine(window,from,to,lineColour);
+
+
+	lineColour = Colour(0,255,0);
+	from = CanvasPoint(round(window.width/2),0);
+	to = CanvasPoint(round(window.width/2),window.height);
+	drawLine(window,from,to,lineColour);
+
+	lineColour = Colour(0,0,255);
+	from = CanvasPoint(round(window.width/2)-round(window.width/6),round(window.height/2));
+	to = CanvasPoint(round(window.width/2)+round(window.width/6),round(window.height/2));
+
+
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
-		draw(window);
+		drawLine(window,from,to,lineColour);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
