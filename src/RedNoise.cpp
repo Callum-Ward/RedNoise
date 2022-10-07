@@ -8,7 +8,8 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
-#include <stdlib.h> 
+#include <math.h> 
+#include <stdlib.h>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -26,29 +27,6 @@ std::vector<glm::vec3> interpolateThreeElementValues(glm::vec3 from, glm::vec3 t
 	}
 
 	return fade; 
-}
-
-void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour) {
-	float xDiff = to.x-from.x;
-	float yDiff = to.y-from.y;
-	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
-	float xStepSize = xDiff / numberOfSteps;
-	float yStepSize = yDiff / numberOfSteps;
-	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
-	for (float i = 0; i < numberOfSteps; i++)
-	{
-		float x = from.x + xStepSize*i;
-		float y = from.y + yStepSize*i;
-		window.setPixelColour(round(x),round(y), colour_32);
-	}
-
-}
-
-void drawTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
-	//window.clearPixels();
-	drawLine(window,triangle.v0(),triangle.v1(),colour);
-	drawLine(window,triangle.v1(),triangle.v2(),colour);
-	drawLine(window,triangle.v2(),triangle.v0(),colour);
 }
 
 void draw(DrawingWindow &window) {
@@ -73,7 +51,84 @@ void draw(DrawingWindow &window) {
 	}
 }
 
+void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour) {
+	float xDiff = to.x-from.x;
+	float yDiff = to.y-from.y;
+	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
+	float xStepSize = xDiff / numberOfSteps;
+	float yStepSize = yDiff / numberOfSteps;
+	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+	for (float i = 0; i < numberOfSteps; i++)
+	{
+		float x = from.x + xStepSize*i;
+		float y = from.y + yStepSize*i;
+		window.setPixelColour(round(x),round(y), colour_32);
+	}
+
+}
+
+void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
+
+	//window.clearPixels();
+	drawLine(window,triangle.v0(),triangle.v1(),colour);
+	drawLine(window,triangle.v1(),triangle.v2(),colour);
+	drawLine(window,triangle.v2(),triangle.v0(),colour);
+}
+
+void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
+	if (triangle.v0().y > triangle.v1().y) std::swap(triangle.v0().y,triangle.v1().y);
+	if (triangle.v0().y > triangle.v2().y) {
+		std::swap(triangle.v0().y,triangle.v2().y);
+		std::swap(triangle.v2().y,triangle.v1().y);
+	} else if (triangle.v1().y > triangle.v2().y) std::swap(triangle.v1().y,triangle.v2().y);
+
+	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
+	float y[3] = {triangle.v0().y,triangle.v1().y,triangle.v2().y};
+	float xStepSize[3],yStepSize[3];
+	CanvasPoint lineStart;
+	CanvasPoint lineEnd;	
+
+	for (int c=0;c<2;++c){
+		xStepSize[c] = (x[c+1] - x[0])/ fmax(abs(x[c+1] - x[0]),abs(y[c+1] - y[0])); //step[0] top
+		yStepSize[c] = (y[c+1] - y[0]) / fmax(abs(y[c+1] - y[0]),abs(x[c+1] - x[0]));//step[1] full length line
+	}
+	xStepSize[2] = (x[2]-x[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1])); //step[3] second stage line
+	yStepSize[2] = (y[2]-y[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1]));
+
+	float curX[2] = {x[0],x[0]};
+	float curY[2] = {y[0],y[0]};
+	for (size_t row = y[0]; row < y[2]; row++){
+		if (row == y[1]){
+			xStepSize[0] = xStepSize[2];
+			yStepSize[0] = yStepSize[2];
+			curX[0] = x[1];
+			curY[0] = y[1];		
+		}
+		for (size_t i = 0; i < 2; i++){
+			if (yStepSize[i]>0) {
+				while(round(curY[i]+ yStepSize[i]) == row ){			
+					curX[i]+=xStepSize[i];
+					curY[i]+=yStepSize[i];
+				}
+			}
+		}
+		lineStart = CanvasPoint(round(curX[0]),row); 
+		lineEnd = CanvasPoint(round(curX[1]),row);	
+		drawLine(window, lineStart,lineEnd,colour); //draw horizontal line before y change
+		curX[0] += xStepSize[0];
+		curY[0] += yStepSize[0];
+		curX[1]  += xStepSize[1];
+		curY[1] += yStepSize[1];
+	}
+	drawStrokedTriangle(window,triangle,Colour(255,255,255));
+	//window.setPixelColour(round(x),round(y), colour_32);
+}
+
 void handleEvent(SDL_Event event, DrawingWindow &window) {
+	srand (time(NULL));
+	CanvasPoint v0 = CanvasPoint(rand()%(window.width),rand()%(window.height));
+	CanvasPoint v1 = CanvasPoint(rand()%(window.width),rand()%(window.height));
+	CanvasPoint v2 = CanvasPoint(rand()%(window.width),rand()%(window.height));
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) std::cout << "LEFT" << std::endl;
 		else if (event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
@@ -81,12 +136,16 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 		else if (event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
 		else if (event.key.keysym.sym == SDLK_u) {
 			std::cout << "u" << std::endl;
+			srand (time(NULL));
 			Colour triangleColour = Colour(rand()%255,rand()%255,rand()%255);
-			CanvasPoint v0 = CanvasPoint(rand()%window.width,rand()%window.height);
-			CanvasPoint v1 = CanvasPoint(rand()%window.width,rand()%window.height);
-			CanvasPoint v2 = CanvasPoint(rand()%window.width,rand()%window.height);
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
-			drawTriangle(window, triangle,triangleColour);
+			drawStrokedTriangle(window,triangle,triangleColour);
+
+		} else if (event.key.keysym.sym == SDLK_f) {
+			std::cout << "f" << std::endl;
+			Colour triangleColour = Colour(rand()%255,rand()%255,rand()%255);
+			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
+			drawFilledTriangle(window,triangle,triangleColour);
 		}
 	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 		window.savePPM("output.ppm");
