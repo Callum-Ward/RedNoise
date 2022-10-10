@@ -94,16 +94,12 @@ void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour co
 }
 
 void drawLineTextured(DrawingWindow &window, CanvasPoint from, CanvasPoint to, std::vector<uint32_t> rowTexture) {
-	std::cout << "step 7 drawLineTextured\n";
 	float xDiff = to.x-from.x;
 	float yDiff = to.y-from.y;
 	if (xDiff == 0 && yDiff == 0) {
 		window.setPixelColour(to.x,to.y, rowTexture[0]);
 	} else {
 		float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
-		std::cout << "number of steps " << numberOfSteps<<"\n";
-		std::cout << "row texture length " << rowTexture.size()<<"\n";
-
 		float xStepSize = xDiff / numberOfSteps;
 		float yStepSize = yDiff / numberOfSteps;
 		float x,y;
@@ -117,7 +113,6 @@ void drawLineTextured(DrawingWindow &window, CanvasPoint from, CanvasPoint to, s
 			window.setPixelColour(round(x),round(y), rowTexture[i]);
 		}
 	}
-	std::cout << "step 7 drawLineTextured end\n";
 
 }
 
@@ -130,9 +125,6 @@ void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour 
 }
 
 std::vector<uint32_t> getRowTexture(TextureMap texture,TexturePoint from, TexturePoint to){
-	std::cout << "step 4.5 getRowTexture\n";
-	std::cout << "texture from: "<< from.x  << "," << from.y <<"\n";
-	std::cout << "texture to: "<< to.x  << "," << to.y <<"\n";
 
 	std::vector<uint32_t> row;
 	if (from.x == to.x && from.y == to.y) {
@@ -144,16 +136,11 @@ std::vector<uint32_t> getRowTexture(TextureMap texture,TexturePoint from, Textur
 	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
 	float xStepSize = xDiff / numberOfSteps;
 	float yStepSize = yDiff / numberOfSteps;
-	std::cout << "xStepSize: "<< xStepSize  <<"\n";
-	std::cout << "yStepSize: "<< yStepSize  <<"\n";
 	
 	for (float i = 0; i < numberOfSteps; i++)
 	{
 		float x = from.x + xStepSize*i;
 		float y = from.y + yStepSize*i;
-		std::cout << "texture.pixels.size: "<< texture.pixels.size()  <<"\n";
-		std::cout << "pixels index: "<< texture.width*(round(y)-1) + (round(x)-1)  <<"\n";
-		std::cout << "step number: "<< i << " of " << numberOfSteps  <<"\n";
 
 		row.push_back(texture.pixels[texture.width*(round(y)-1) + (round(x)-1)]);
 	}
@@ -172,40 +159,20 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle triangle,CanvasPoint st
 	//get texture row vector
 	//determine diffrence in length x and y
 	//scale vector by interpolation
-	std::cout << "step 4 getScaledRowTexture\n";
-
 	std::vector<uint32_t> rowTexture = getRowTexture(texture,start.texturePoint,end.texturePoint);
 	std::vector<std::vector<int>> imgLineCoords = getLineCoords(start,end);
 
 	if (rowTexture.size() > imgLineCoords.size() ) { //scale down by removing pixels periodically
-		std::cout << "step 6.5 scale down\n";
-		std::cout << "rowTexture size:"<<rowTexture.size() <<"\n";
-		std::cout << "imgLine size:"<< imgLineCoords.size() <<"\n";
-
 		int pixelsToLose = rowTexture.size() - imgLineCoords.size();
 		int stepToErase = rowTexture.size() / pixelsToLose;
-
 		for (size_t i = 0; i < pixelsToLose; i++) { //start erasing from 0	
 			rowTexture.erase(rowTexture.begin()+ round(i*stepToErase)-i);
 		} 
-
 	} else if (rowTexture.size() < imgLineCoords.size()) {//scale up by interpolating between 2 neighbouring pixels periodically 
-		std::cout << "step 6.5 scale up\n";
-		std::cout << "rowTexture size:"<<rowTexture.size() <<"\n";
-		std::cout << "imgLine size:"<< imgLineCoords.size() <<"\n";
-
-
 		int pixelsToGain = imgLineCoords.size()-rowTexture.size();
-		std::cout << "pixels to gain "<< pixelsToGain <<"\n";
-
 		int stepToInsert = imgLineCoords.size() / pixelsToGain;
-		std::cout << "step to insert "<< stepToInsert<<"\n";
-
 		for (size_t i = 0; i < pixelsToGain; i++) {
 			int insertIndex = round(stepToInsert*pixelsToGain)+i;
-			std::cout << "insert index "<< insertIndex <<"\n";
-			std::cout << "vector size "<< rowTexture.size() <<"\n";
-
 			uint32_t newPixel;
 			if (insertIndex == 0 || insertIndex == rowTexture.size()-1) {
 				newPixel = rowTexture[insertIndex];
@@ -216,7 +183,6 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle triangle,CanvasPoint st
 		}
 		return rowTexture;
 	}
-	std::cout << "rowTexture size returned:"<<rowTexture.size() <<"\n";
 	return rowTexture;
 }
 
@@ -234,14 +200,11 @@ TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int verte
 		bigV = triangle.v2();
 		smallV = triangle.v0();
 	}
-	std::cout << "step 2.1 getTexturePoint\n";
 	int yLength = bigV.y -smallV.y;
 
 	float ratio = (point.y - smallV.y) / yLength;
 	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*ratio);
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*ratio);
-	std::cout << "img point: " << point.x << "," << point.y << "\n";
-	std::cout << "texture point: " << xTexture << "," << yTexture << "\n";
 
 	textureP = TexturePoint(xTexture,yTexture);
 	return textureP;
@@ -267,7 +230,6 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureM
 	}
 
 	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
-	std::cout<< x[0] << " " << x[1] << " " << x[2] << "\n";
 	float y[3] = {triangle.v0().y,triangle.v1().y,triangle.v2().y};
 	float xStepSize[3],yStepSize[3];
 	CanvasPoint lineStart;
@@ -284,10 +246,8 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureM
 	int fillStage =0;
 
 	for (size_t row = y[0]; row < y[2]; row++){ //loop through y values from v0 to v2
-		std::cout << "fillstage " << fillStage<<"\n";
 
 		if (row == y[1]){ //if v0-v1 is filled with lines switch step size to v1-v2
-			std::cout << "step 11 ------------------\n";
 
 			fillStage++;
 			xStepSize[0] = xStepSize[2];
@@ -317,11 +277,11 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureM
 		curY[0] += yStepSize[0];
 		curX[1]  += xStepSize[1];
 		curY[1] += yStepSize[1];
-		std::cout << "step 10\n";
-		std::cout << "\n";
+
+
 
 	}
-	std::cout << "step 11\n";
+
 
 	//drawLine(window, CanvasPoint(x[2],y[2]),CanvasPoint(x[2],y[2]),colour);
 	drawStrokedTriangle(window,triangle,Colour(255,255,255));
