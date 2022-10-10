@@ -113,7 +113,6 @@ void drawLineTextured(DrawingWindow &window, CanvasPoint from, CanvasPoint to, s
 		{
 			x = from.x + xStepSize*i;
 			y = from.y + yStepSize*i;
-			std::cout << "rowTexture[i}"<< rowTexture[i] <<"\n";
 
 			window.setPixelColour(round(x),round(y), rowTexture[i]);
 		}
@@ -152,6 +151,10 @@ std::vector<uint32_t> getRowTexture(TextureMap texture,TexturePoint from, Textur
 	{
 		float x = from.x + xStepSize*i;
 		float y = from.y + yStepSize*i;
+		std::cout << "texture.pixels.size: "<< texture.pixels.size()  <<"\n";
+		std::cout << "pixels index: "<< texture.width*(round(y)-1) + (round(x)-1)  <<"\n";
+		std::cout << "step number: "<< i << " of " << numberOfSteps  <<"\n";
+
 		row.push_back(texture.pixels[texture.width*(round(y)-1) + (round(x)-1)]);
 	}
 	return row;
@@ -180,17 +183,11 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle triangle,CanvasPoint st
 		std::cout << "imgLine size:"<< imgLineCoords.size() <<"\n";
 
 		int pixelsToLose = rowTexture.size() - imgLineCoords.size();
-		std::cout << "pixels to lose "<< pixelsToLose <<"\n";
-
 		int stepToErase = rowTexture.size() / pixelsToLose;
-		std::cout << "step to erase "<< stepToErase<<"\n";
 
-		for (size_t i = 0; i < pixelsToLose; i++) { //start erasing from 0
-			std::cout << "index to erase "<< round(i*stepToErase)-i<<"\n";
-			rowTexture.erase(rowTexture.begin()+ round(i*stepToErase)-pixelsToLose);
-			std::cout << "i: "<< i<<"\n";
-
-		}
+		for (size_t i = 0; i < pixelsToLose; i++) { //start erasing from 0	
+			rowTexture.erase(rowTexture.begin()+ round(i*stepToErase)-i);
+		} 
 
 	} else if (rowTexture.size() < imgLineCoords.size()) {//scale up by interpolating between 2 neighbouring pixels periodically 
 		std::cout << "step 6.5 scale up\n";
@@ -315,7 +312,6 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureM
 	
 		std::vector<uint32_t> rowTexture = getScaledRowTexture(triangle,lineStart,lineEnd,texture); //get the exact number of pixels required to draw in image by scaling fetched texture
 		drawLineTextured(window, lineStart,lineEnd,rowTexture); //draw horizontal line before y incrmement
-
 
 		curX[0] += xStepSize[0];
 		curY[0] += yStepSize[0];
