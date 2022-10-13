@@ -369,6 +369,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		if (sections.size()>0) {
 			if (sections[0] == "v") {
 				glm::vec3 newV = glm::vec3(scale *std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
+				std::cout << newV.x << ","<< newV.y << "," << newV.z<< "\n";
 				vertices.push_back(newV);
 			} else if (sections[0] == "f") {
 				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1;
@@ -386,9 +387,9 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	return triangles;
 }
 
-CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition, glm::vec3 vertexPosition,float focalLength) {
-	int x = round(focalLength * ((vertexPosition.x  - cameraPosition.x)/ (vertexPosition.z - cameraPosition.z)) + (window.width/2));
-	int y = round(focalLength * ((vertexPosition.y - cameraPosition.y) / (vertexPosition.z - cameraPosition.z)) + (window.width/2));
+CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition, glm::vec3 vertexPosition,float focalLength, float planeScaler) {
+	int x = round(planeScaler * focalLength * ((vertexPosition.x  - cameraPosition.x)/ (vertexPosition.z - cameraPosition.z)) + (window.width/2));
+	int y = round(planeScaler * focalLength * ((vertexPosition.y - cameraPosition.y) / (vertexPosition.z - cameraPosition.z)) + (window.height/2));
 	return CanvasPoint(x,y);
 }
 
@@ -428,9 +429,21 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 		} else if (event.key.keysym.sym == SDLK_l) {
 
-			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",1);
+			const float focalL = 2;
+			const float objScaler = 0.35;
+			const float planeScaler = 240/focalL;
+
+			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 			glm::vec3 cameraPos = glm::vec3(0,0,4);
-			float focalL = 2;
+			for (ModelTriangle triangle : triangles) {
+				for (size_t i = 0; i <3; i++)
+				{
+					CanvasPoint point = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
+					std::cout << point<<"\n";
+					window.setPixelColour(point.x,point.y,(255 << 24) + (255 << 16) + (255 << 8) + 255);
+				}
+			}
+		
 			
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
