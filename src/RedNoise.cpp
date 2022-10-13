@@ -341,7 +341,7 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 	//window.setPixelColour(round(x),round(y), colour_32);
 }
 
-std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilename ) {
+std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilename, float scale) {
 	std::string line;
 	std::vector<ModelTriangle> triangles;
 	std::vector<glm::vec3> vertices;
@@ -368,7 +368,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 			if (sections[0] == "v") {
-				glm::vec3 newV = glm::vec3(std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]) );
+				glm::vec3 newV = glm::vec3(scale *std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
 				vertices.push_back(newV);
 			} else if (sections[0] == "f") {
 				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1;
@@ -423,7 +423,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 		} else if (event.key.keysym.sym == SDLK_l) {
 
-			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl");
+			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",1);
 			for (ModelTriangle tri : triangles) {
 				std::cout << tri.vertices[0].x << " , "<< tri.vertices[0].y << " , "<< tri.vertices[0].z  << "\n";
 				std::cout << tri.vertices[1].x << " , "<< tri.vertices[1].y << " , "<< tri.vertices[1].z  << "\n";
