@@ -9,6 +9,7 @@ struct Colour {
 	int blue{};
 	Colour();
 	Colour(int r, int g, int b);
+	Colour(std::string n,float r, float g, float b);
 	Colour(std::string n, int r, int g, int b);
 };
 

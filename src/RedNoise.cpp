@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <unordered_map>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -340,35 +341,48 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 	//window.setPixelColour(round(x),round(y), colour_32);
 }
 
-std::vector<ModelTriangle> loadObj(std::string filename) {
+std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilename ) {
 	std::string line;
 	std::vector<ModelTriangle> triangles;
 	std::vector<glm::vec3> vertices;
-	Colour colour = Colour(255,0,0);
+	std::unordered_map<std::string, Colour> objColours;
+	std::string colourName;
+	std::vector<std::string> sections;
 
-	std::ifstream MyReadFile(filename);
+	std::ifstream MyReadFileMtl(mtlFilename);
+	while (getline (MyReadFileMtl, line)) {
+		sections = split(line, ' ');
+		if (sections.size()>0) {
+			if (sections[0] == "Kd") {
+				objColours.insert({colourName, Colour(colourName,std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]))});
+			} else if (sections[0] == "newmtl") {
+				colourName = sections[1];
+			} 
+		}
+		sections.clear();
+	}
+	MyReadFileMtl.close();
+	Colour curCol;
+	std::ifstream MyReadFile(objFilename);
 	while (getline (MyReadFile, line)) {
-		std::vector<std::string> sections = split(line, ' ');
+		sections = split(line, ' ');
 		if (sections.size()>0) {
 			if (sections[0] == "v") {
 				glm::vec3 newV = glm::vec3(std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]) );
 				vertices.push_back(newV);
 			} else if (sections[0] == "f") {
-				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1 ;
-				int v1Pos = std::stoi(split(sections[2], '/')[0]) -1 ;
-				int v2Pos = std::stoi(split(sections[3], '/')[0]) -1 ;
-				triangles.push_back(ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],colour));
+				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1;
+				int v1Pos = std::stoi(split(sections[2], '/')[0]) -1;
+				int v2Pos = std::stoi(split(sections[3], '/')[0]) -1;
+				triangles.push_back(ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol));
 			} else if (sections[0] == "usemtl") {
-				
-			} 
+				curCol = objColours[sections[1]];
+			} 	
 		}
-		
-
-
 	}
-
-	// Close the file
 	MyReadFile.close();
+
+
 	return triangles;
 }
 
@@ -409,11 +423,13 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 		} else if (event.key.keysym.sym == SDLK_l) {
 
-			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj");
+			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl");
 			for (ModelTriangle tri : triangles) {
 				std::cout << tri.vertices[0].x << " , "<< tri.vertices[0].y << " , "<< tri.vertices[0].z  << "\n";
 				std::cout << tri.vertices[1].x << " , "<< tri.vertices[1].y << " , "<< tri.vertices[1].z  << "\n";
-				std::cout << tri.vertices[2].x << " , "<< tri.vertices[2].y << " , "<< tri.vertices[2].z  << "\n";		
+				std::cout << tri.vertices[2].x << " , "<< tri.vertices[2].y << " , "<< tri.vertices[2].z  << "\n";	
+				std::cout << tri.colour << "\n";	
+					
 				std::cout << "\n";		
 			}
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
