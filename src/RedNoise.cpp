@@ -2,15 +2,18 @@
 #include <DrawingWindow.h>
 #include <CanvasPoint.h>
 #include <CanvasTriangle.h>
+#include <ModelTriangle.h>
 #include <Colour.h>
 #include <TextureMap.h>
 #include <glm/glm.hpp>
-#include <Utils.h>
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <Utils.h>
 #include <math.h> 
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -210,7 +213,7 @@ TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int verte
 	return textureP;
 }
 
-void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureMap texture) {
+void drawTexturedTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureMap texture) {
 	if (triangle.v0().y > triangle.v1().y) {
 		std::swap(triangle.v0().y,triangle.v1().y); //sorting vertices in order of y coord smallest to largest
 		std::swap(triangle.v0().x,triangle.v1().x); 
@@ -288,6 +291,88 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureM
 	//window.setPixelColour(round(x),round(y), colour_32);
 }
 
+void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
+	if (triangle.v0().y > triangle.v1().y) std::swap(triangle.v0().y,triangle.v1().y);
+	if (triangle.v0().y > triangle.v2().y) {
+		std::swap(triangle.v0().y,triangle.v2().y);
+		std::swap(triangle.v2().y,triangle.v1().y);
+	} else if (triangle.v1().y > triangle.v2().y) std::swap(triangle.v1().y,triangle.v2().y);
+
+	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
+	float y[3] = {triangle.v0().y,triangle.v1().y,triangle.v2().y};
+	float xStepSize[3],yStepSize[3];
+	CanvasPoint lineStart;
+	CanvasPoint lineEnd;	
+
+	for (int c=0;c<2;++c){
+		xStepSize[c] = (x[c+1] - x[0])/ fmax(abs(x[c+1] - x[0]),abs(y[c+1] - y[0])); //step[0] top
+		yStepSize[c] = (y[c+1] - y[0]) / fmax(abs(y[c+1] - y[0]),abs(x[c+1] - x[0]));//step[1] full length line
+	}
+	xStepSize[2] = (x[2]-x[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1])); //step[3] second stage line
+	yStepSize[2] = (y[2]-y[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1]));
+
+	float curX[2] = {x[0],x[0]};
+	float curY[2] = {y[0],y[0]};
+	for (size_t row = y[0]; row < y[2]; row++){
+		if (row == y[1]){
+			xStepSize[0] = xStepSize[2];
+			yStepSize[0] = yStepSize[2];
+			curX[0] = x[1];
+			curY[0] = y[1];		
+		}
+		for (size_t i = 0; i < 2; i++){
+			if (yStepSize[i]>0) {
+				while(round(curY[i]+ yStepSize[i]) == row ){			
+					curX[i]+=xStepSize[i];
+					curY[i]+=yStepSize[i];
+				}
+			}
+		}
+		lineStart = CanvasPoint(round(curX[0]),row); 
+		lineEnd = CanvasPoint(round(curX[1]),row);	
+		drawLine(window, lineStart,lineEnd,colour); //draw horizontal line before y change
+		curX[0] += xStepSize[0];
+		curY[0] += yStepSize[0];
+		curX[1]  += xStepSize[1];
+		curY[1] += yStepSize[1];
+	}
+	drawStrokedTriangle(window,triangle,Colour(255,255,255));
+	//window.setPixelColour(round(x),round(y), colour_32);
+}
+
+std::vector<ModelTriangle> loadObj(std::string filename) {
+	std::string line;
+	std::vector<ModelTriangle> triangles;
+	std::vector<glm::vec3> vertices;
+	Colour colour = Colour(255,0,0);
+
+	std::ifstream MyReadFile(filename);
+	while (getline (MyReadFile, line)) {
+		std::vector<std::string> sections = split(line, ' ');
+		if (sections.size()>0) {
+			if (sections[0] == "v") {
+				glm::vec3 newV = glm::vec3(std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]) );
+				vertices.push_back(newV);
+			} else if (sections[0] == "f") {
+				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1 ;
+				int v1Pos = std::stoi(split(sections[2], '/')[0]) -1 ;
+				int v2Pos = std::stoi(split(sections[3], '/')[0]) -1 ;
+				triangles.push_back(ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],colour));
+			} else if (sections[0] == "usemtl") {
+				
+			} 
+		}
+		
+
+
+	}
+
+	// Close the file
+	MyReadFile.close();
+	return triangles;
+}
+
+
 void handleEvent(SDL_Event event, DrawingWindow &window) {
 	srand (time(NULL));
 	CanvasPoint v0 = CanvasPoint(rand()%(window.width),rand()%(window.height));
@@ -309,7 +394,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 			std::cout << "f" << std::endl;
 			Colour triangleColour = Colour(rand()%255,rand()%255,rand()%255);
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
-			drawFilledTriangle(window,triangle,TextureMap("texture.ppm"));
+			drawFilledTriangle(window,triangle,triangleColour);
 
 		} else if (event.key.keysym.sym == SDLK_t) {
 
@@ -321,12 +406,20 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 			v2.texturePoint = TexturePoint(65,330);
 			std::cout << "t" << std::endl;
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
-			drawFilledTriangle(window,triangle,TextureMap("texture.ppm"));
-		}
+			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
+		} else if (event.key.keysym.sym == SDLK_l) {
 
-	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
-		window.savePPM("output.ppm");
-		window.saveBMP("output.bmp");
+			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj");
+			for (ModelTriangle tri : triangles) {
+				std::cout << tri.vertices[0].x << " , "<< tri.vertices[0].y << " , "<< tri.vertices[0].z  << "\n";
+				std::cout << tri.vertices[1].x << " , "<< tri.vertices[1].y << " , "<< tri.vertices[1].z  << "\n";
+				std::cout << tri.vertices[2].x << " , "<< tri.vertices[2].y << " , "<< tri.vertices[2].z  << "\n";		
+				std::cout << "\n";		
+			}
+		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
+			window.savePPM("output.ppm");
+			window.saveBMP("output.bmp"); 
+		}
 	}
 }
 
