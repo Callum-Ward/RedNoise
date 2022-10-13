@@ -386,6 +386,11 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	return triangles;
 }
 
+CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition, glm::vec3 vertexPosition,float focalLength) {
+	int x = round(focalLength * ((vertexPosition.x  - cameraPosition.x)/ (vertexPosition.z - cameraPosition.z)) + (window.width/2));
+	int y = round(focalLength * ((vertexPosition.y - cameraPosition.y) / (vertexPosition.z - cameraPosition.z)) + (window.width/2));
+	return CanvasPoint(x,y);
+}
 
 void handleEvent(SDL_Event event, DrawingWindow &window) {
 	srand (time(NULL));
@@ -424,14 +429,9 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 		} else if (event.key.keysym.sym == SDLK_l) {
 
 			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",1);
-			for (ModelTriangle tri : triangles) {
-				std::cout << tri.vertices[0].x << " , "<< tri.vertices[0].y << " , "<< tri.vertices[0].z  << "\n";
-				std::cout << tri.vertices[1].x << " , "<< tri.vertices[1].y << " , "<< tri.vertices[1].z  << "\n";
-				std::cout << tri.vertices[2].x << " , "<< tri.vertices[2].y << " , "<< tri.vertices[2].z  << "\n";	
-				std::cout << tri.colour << "\n";	
-					
-				std::cout << "\n";		
-			}
+			glm::vec3 cameraPos = glm::vec3(0,0,4);
+			float focalL = 2;
+			
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
 			window.saveBMP("output.bmp"); 
