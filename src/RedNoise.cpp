@@ -431,20 +431,21 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 
 			const float focalL = 2;
 			const float objScaler = 0.35;
-			const float planeScaler = 240/focalL;
+			const float planeScaler = 180;
 
 			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 			glm::vec3 cameraPos = glm::vec3(0,0,4);
 			for (ModelTriangle triangle : triangles) {
+
+				CanvasPoint v[3];
 				for (size_t i = 0; i <3; i++)
 				{
-					CanvasPoint point = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
-					std::cout << point<<"\n";
-					window.setPixelColour(point.x,point.y,(255 << 24) + (255 << 16) + (255 << 8) + 255);
+					v[i] = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
 				}
+				drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]), Colour(255,255,255));
 			}
+
 		
-			
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
 			window.saveBMP("output.bmp"); 
