@@ -16,8 +16,10 @@
 #include <fstream>
 #include <unordered_map>
 
-#define WIDTH 320
-#define HEIGHT 240
+#define WIDTH 960
+//#define WIDTH 320
+//#define HEIGHT 240
+#define HEIGHT 720
 
 std::vector<glm::vec3> interpolateThreeElementValues(glm::vec3 from, glm::vec3 to, float numberOfValues) {
 	std::vector<glm::vec3> fade;
@@ -57,12 +59,19 @@ std::vector<std::vector<int>> getLineCoords(CanvasPoint from, CanvasPoint to){
 		line.push_back(coord);
 	}
 	return line;
-}
+} 
 
 float getPointDepth(CanvasPoint v0, CanvasPoint v1, int curX,int curY) {
-	float ratio = ((curY-v0.y)+ abs(curX-v0.x)) / ((v1.y- v0.y) + abs(v1.x - v0.x));
+
+
+	float ratio = ((curY-v0.y)+ abs(curX-v0.x)) /((v1.y- v0.y) + abs(v1.x - v0.x));
+	//std::cout << "ratio " << ratio << "\n";
+	
 	float depthRange = v1.depth - v0.depth;
-	return v0.depth + depthRange*ratio;
+	//std::cout << "depth range " << depthRange << "\n";
+	//std::cout << "v0 " << v0.x << "," << v0.y  << " depth " << v0.depth << "  v1 " << v1.x << "," << v1.y<< " depth " << v1.depth << "  Cur " << curX << "," << curY << " depth " << v0.depth + depthRange*ratio << "\n";  
+	return (v0.depth + (depthRange*ratio));
+	//return (v0.depth + v1.depth) /2;
 }
 
 void draw(DrawingWindow &window) {
@@ -87,43 +96,63 @@ void draw(DrawingWindow &window) {
 	}
 }
 
-void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour,std::vector<std::vector<float>> depthBuffer) {
-	float xDiff = to.x-from.x;
-	float yDiff = to.y-from.y;
-	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
-	float xStepSize = xDiff / numberOfSteps;
-	float yStepSize = yDiff / numberOfSteps;
+void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour,std::vector<std::vector<float>> &depthBuffer) {
 	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
-	for (size_t i = 0; i < numberOfSteps; i++)
-	{
-		int x = round(from.x + xStepSize*i);
-		int y = round(from.y + yStepSize*i);
-		float depth = getPointDepth(from,to,x,y);
-		if (1/depth > depthBuffer[x][y]){
-			depthBuffer[x][y] = depth;
-			window.setPixelColour(round(x),round(y), colour_32);
+	if (from.x == to.x && from.y == to.y) {
+		if (from.depth > depthBuffer[from.x][from.y]){
+			depthBuffer[from.x][from.y] = from.depth;
+			window.setPixelColour(from.x,from.y, colour_32);
 		}
-		
-	}
+	} else {
+		float xDiff = to.x-from.x;
+		float yDiff = to.y-from.y;
+		float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
+		float xStepSize = xDiff / numberOfSteps;
+		float yStepSize = yDiff / numberOfSteps;
 
+		uint32_t white = (255 << 24) + (255 << 16) + (255 << 8) + 255;
+
+		for (size_t i = 0; i <= numberOfSteps; i++) {
+
+			int x = round(from.x + xStepSize*i);
+			int y = round(from.y + yStepSize*i);
+			//std::cout << "x " << x << "  y " << y << "\n";
+			float depth = getPointDepth(from,to,x,y) ; //sigmoid function outputs 0-1 range
+			//std::cout << "   |   parents depth " << from.depth << " & " << to.depth << " child depth " << depth << "   |";
+ 			if (depth > depthBuffer[x][y]){
+				//std::cout << "depth buffer before " << depthBuffer[x][y] << "\n";
+				depthBuffer[x][y] = depth;
+				//std::cout << "depth buffer after " << depthBuffer[x][y] << "\n";
+				window.setPixelColour(x,y, colour_32);
+			} else {
+				//std::cout << "current depth " << depth << "\n"; 
+				//std::cout << "depth " << depthBuffer[x][y] << "\n"; 
+				//window.setPixelColour(x,y, white);
+			}
+		}
+		//std::cout << "\n";
+	}
 }
 
 void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour) {
-	float xDiff = to.x-from.x;
-	float yDiff = to.y-from.y;
-	float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
-	float xStepSize = xDiff / numberOfSteps;
-	float yStepSize = yDiff / numberOfSteps;
 	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
-	for (size_t i = 0; i < numberOfSteps; i++)
-	{
-		int x = round(from.x + xStepSize*i);
-		int y = round(from.y + yStepSize*i);
-		window.setPixelColour(round(x),round(y), colour_32);
-		
+	if (from.x == to.x && from.y == to.y) {
+		window.setPixelColour(from.x,from.y, colour_32);
+	} else {
+		float xDiff = to.x-from.x;
+		float yDiff = to.y-from.y;
+		float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
+		float xStepSize = xDiff / numberOfSteps;
+		float yStepSize = yDiff / numberOfSteps;
+		for (size_t i = 0; i <= numberOfSteps; i++)
+		{
+			int x = round(from.x + xStepSize*i);
+			int y = round(from.y + yStepSize*i);
+			window.setPixelColour(x,y, colour_32);
+		}
 	}
-
 }
+
 void drawLineTextured(DrawingWindow &window, CanvasPoint from, CanvasPoint to, std::vector<uint32_t> rowTexture) {
 	float xDiff = to.x-from.x;
 	float yDiff = to.y-from.y;
@@ -136,7 +165,7 @@ void drawLineTextured(DrawingWindow &window, CanvasPoint from, CanvasPoint to, s
 		float x,y;
 
 
-		for (size_t i = 0; i < numberOfSteps; i++)
+		for (size_t i = 0; i <= numberOfSteps; i++)
 		{
 			x = from.x + xStepSize*i;
 			y = from.y + yStepSize*i;
@@ -320,27 +349,32 @@ void drawTexturedTriangle(DrawingWindow &window, CanvasTriangle triangle, Textur
 	//window.setPixelColour(round(x),round(y), colour_32);
 }
 
-void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour,std::vector<std::vector<float>> depthBuffer) {
+void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour,std::vector<std::vector<float>> &depthBuffer) {
 	if (triangle.v0().y > triangle.v1().y) {
 		std::swap(triangle.v0().y,triangle.v1().y); //sorting vertices in order of y coord smallest to largest
 		std::swap(triangle.v0().x,triangle.v1().x); 
+		std::swap(triangle.v0().depth,triangle.v1().depth); 
 	}
 	if (triangle.v0().y > triangle.v2().y) {
 		std::swap(triangle.v0().y,triangle.v2().y);
 		std::swap(triangle.v0().x,triangle.v2().x);
+		std::swap(triangle.v0().depth,triangle.v2().depth);
 		std::swap(triangle.v2().y,triangle.v1().y);
 		std::swap(triangle.v2().x,triangle.v1().x);
+		std::swap(triangle.v2().depth,triangle.v1().depth);
 	} else if (triangle.v1().y > triangle.v2().y) {
 		std::swap(triangle.v1().y,triangle.v2().y);
 		std::swap(triangle.v1().x,triangle.v2().x);
+		std::swap(triangle.v1().depth,triangle.v2().depth);
 	}
+	
 
 	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
 	float y[3] = {triangle.v0().y,triangle.v1().y,triangle.v2().y};
 	float xStepSize[3],yStepSize[3];
 	CanvasPoint lineStart;
 	CanvasPoint lineEnd;	
-	std::cout << "target: " << x[2] << "," << y[2] <<"\n"; 
+	//std::cout << "target: " << x[2] << "," << y[2] <<"\n"; 
 	for (int c=0;c<2;++c){
 		xStepSize[c] = (x[c+1] - x[0])/ fmax(abs(x[c+1] - x[0]),abs(y[c+1] - y[0])); //step[0] top
 		yStepSize[c] = (y[c+1] - y[0]) / fmax(abs(y[c+1] - y[0]),abs(x[c+1] - x[0]));//step[1] full length line
@@ -351,34 +385,32 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 	float curY[2] = {y[0],y[0]};
 
 	for (size_t row = y[0]; row <= y[2]; row++){
-		if (row == y[1]){
+		if (row == y[1]){ //if v0.y == v1.y == v2.y then only v1 to v2 is drawn
 			xStepSize[0] = xStepSize[2];
 			yStepSize[0] = yStepSize[2];
 			curX[0] = x[1];
 			curY[0] = y[1];		
 		}
 		for (size_t i = 0; i < 2; i++){
-			if (yStepSize[i]>0) {
-				while(round(curY[i]+ yStepSize[i]) == row){		
-					if (round(curX[i]) == x[2] && round(curY[i]) == y[2]) break;
-					curX[i]+=xStepSize[i];
-					curY[i]+=yStepSize[i];
+
+			while(round(curY[i]) == row){	
+
+				if (row <= y[1]) {
+					lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v0(),triangle.v1(), round(curX[0]),row)); 
+					//std::cout << "lineStart depths v0 " << triangle.v0().depth << "  v1 " << triangle.v1().depth << "  new depth  " << lineStart.depth << "\n";
+				} else {
+					lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v1(),triangle.v2(), round(curX[0]),row)); 
 				}
+				lineEnd = CanvasPoint(round(curX[1]),row, getPointDepth(triangle.v0(),triangle.v2(), round(curX[1]),row));
+				//std::cout << "draw line: " << lineStart.x << "," << lineStart.y << " to " << lineEnd.x << "," << lineEnd.y << "\n"; 
+				drawLineDepth(window, lineStart,lineEnd,colour,depthBuffer);
+				//drawLine(window,lineStart,lineEnd,colour);
+				if (yStepSize[i] == 0) break;
+				if (round(curX[i]) == x[2] && round(curY[i]) == y[2]) break;
+				curX[i]+=xStepSize[i];
+				curY[i]+=yStepSize[i];
 			}
 		}
-		if (row <= y[1]) {
-			lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v0(),triangle.v1(), round(curX[0]),row)); 
-		} else {
-			lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v1(),triangle.v2(), round(curX[0]),row)); 
-		}
-		lineEnd = CanvasPoint(round(curX[1]),row, getPointDepth(triangle.v0(),triangle.v2(), round(curX[0]),row));  
-
-	
-		drawLineDepth(window, lineStart,lineEnd,colour,depthBuffer); //draw horizontal line before y change
-		curX[0] += xStepSize[0];
-		curY[0] += yStepSize[0];
-		curX[1]  += xStepSize[1];
-		curY[1] += yStepSize[1];
 	}
 	//drawStrokedTriangle(window,triangle,Colour(255,255,255));
 	//window.setPixelColour(round(x),round(y), colour_32);
@@ -412,7 +444,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		if (sections.size()>0) {
 			if (sections[0] == "v") {
 				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
-				std::cout << -1*newV.x << ","<< newV.y << "," << newV.z<< "\n";
+				//std::cout << -1*newV.x << ","<< newV.y << "," << newV.z<< "\n";
 				vertices.push_back(newV);
 			} else if (sections[0] == "f") {
 				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1;
@@ -433,7 +465,20 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition, glm::vec3 vertexPosition,float focalLength, float planeScaler) {
 	int x = round(planeScaler * focalLength * ((vertexPosition.x  - cameraPosition.x)/ (vertexPosition.z - cameraPosition.z)) + (window.width/2));
 	int y = round(planeScaler * focalLength * ((vertexPosition.y - cameraPosition.y) / (vertexPosition.z - cameraPosition.z)) + (window.height/2));
-	return CanvasPoint(x,y,vertexPosition.z);
+	//std::cout << "vertexPosition " << vertexPosition.z << "\n";
+	return CanvasPoint(x,y,exp(vertexPosition.z));
+}
+
+void drawDepth(DrawingWindow &window,std::vector<std::vector<float>> depthBuffer) {
+	//std::cout <<  "depthBuffer.size" <<depthBuffer.size()<< "  depthBuffer[].size " << depthBuffer[0].size() << "\n";
+	for (size_t x = 0; x < depthBuffer.size(); x++)
+	{
+		for (size_t y = 10; y < depthBuffer[0].size(); y++)
+		{
+			uint32_t colour_32 = (255 << 24) + ( int(round(255 * depthBuffer[x][y])) << 16) + (int(round(255 * depthBuffer[x][y])) << 8) + (int(round(255 * depthBuffer[x][y])));
+			window.setPixelColour(x,y, colour_32);
+		}
+	}
 }
 
 void handleEvent(SDL_Event event, DrawingWindow &window) {
@@ -471,26 +516,32 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 		} else if (event.key.keysym.sym == SDLK_l) {
-
 			const float focalL = 2;
 			const float objScaler = 0.35;
-			const float planeScaler = 180;
-
+			const float planeScaler = HEIGHT/focalL + HEIGHT/5;
 			std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 			glm::vec3 cameraPos = glm::vec3(0,0,4);
 			std::vector<std::vector<float>> depthBuffer(window.width,std::vector<float>(window.height));
 
 			for (ModelTriangle triangle : triangles) {
-
+				
 				CanvasPoint v[3];
-				for (size_t i = 0; i <3; i++)
-				{
+				for (size_t i = 0; i <3; i++){
 					v[i] = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
-					
+					//std::cout << "New z: " << v[i].depth << "\n";
 				}
 
 				drawFilledTriangle(window,CanvasTriangle(v[0],v[1],v[2]),triangle.colour,depthBuffer);
 			}
+			//drawDepth(window,depthBuffer);
+			for (ModelTriangle triangle : triangles) {
+				CanvasPoint v[3];
+				for (size_t i = 0; i <3; i++){
+					v[i] = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
+				}
+				//drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+			}
+			
 
 		
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
