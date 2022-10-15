@@ -466,7 +466,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	int x = round(planeScaler * focalLength * ((vertexPosition.x  - cameraPosition.x)/ (vertexPosition.z - cameraPosition.z)) + (window.width/2));
 	int y = round(planeScaler * focalLength * ((vertexPosition.y - cameraPosition.y) / (vertexPosition.z - cameraPosition.z)) + (window.height/2));
 	//std::cout << "vertexPosition " << vertexPosition.z << "\n";
-	return CanvasPoint(x,y,exp(vertexPosition.z));
+	return CanvasPoint(x,y,(1/(1+exp(-vertexPosition.z))) );
 }
 
 void drawDepth(DrawingWindow &window,std::vector<std::vector<float>> depthBuffer) {
@@ -533,13 +533,13 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 
 				drawFilledTriangle(window,CanvasTriangle(v[0],v[1],v[2]),triangle.colour,depthBuffer);
 			}
-			//drawDepth(window,depthBuffer);
+			drawDepth(window,depthBuffer);
 			for (ModelTriangle triangle : triangles) {
 				CanvasPoint v[3];
 				for (size_t i = 0; i <3; i++){
 					v[i] = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
 				}
-				//drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+				drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
 			}
 			
 
