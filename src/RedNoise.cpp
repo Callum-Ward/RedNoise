@@ -489,11 +489,11 @@ void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 
 	} */
 }
 
-void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos) {
+void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation) {
 	const float xStep = 0.01; //objects coords scaled 0-1
 	const float yStep = 0.01;
 	const float zStep = 0.01;
-	const float theta = 0.01;
+	const float theta = M_PI / 30; // 9 degree increments
 
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) { 
@@ -518,13 +518,32 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos) {
 			std::cout << "BACKWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_d) {
 			
-			glm::mat3 clock_rot = glm::mat3(
+			glm::mat3 countClock_rot = glm::mat3(
  			  	1, 0, 0, // first column (not row!)
    				0, cos(theta), sin(theta), // second column
    				0, -sin(theta), cos(theta)  // third column
 			);
-			cameraPos = cameraPos * clock_rot;
+			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			for (size_t y = 0; y < 3; y++){
+				for (size_t i = 0; i < 3; i++){
+					std::cout << cameraOrientation[y][i] << ",";
+				}
+				std::cout << "\n";
+			}
+			
+			cameraOrientation = cameraOrientation * countClock_rot;
+			cameraPos = cameraPos * cameraOrientation;
 			std::cout << "ROTATE X COUNTER-CLOCKWISE" << std::endl;
+			std::cout << "cameraPosAdter " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+				for (size_t y = 0; y < 3; y++)
+			{
+				for (size_t i = 0; i < 3; i++)
+				{
+					std::cout << cameraOrientation[y][i] << ",";
+				}
+				std::cout << "\n";
+			}
+
 
 
 		} else if (event.key.keysym.sym == SDLK_a) {
@@ -533,16 +552,37 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos) {
    				0, cos(-theta), sin(-theta), // second column
    				0, -sin(-theta), cos(-theta)  // third column
 			);
-			cameraPos = cameraPos * clock_rot;
+			for (size_t y = 0; y < 3; y++){
+				for (size_t i = 0; i < 3; i++){
+					std::cout << cameraOrientation[y][i] << ",";
+				}
+				std::cout << "\n";
+			}
+			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			cameraOrientation = cameraOrientation * clock_rot;
+			cameraPos = cameraPos * cameraOrientation;
+			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+
 			std::cout << "ROTATE X CLOCKWISE" << std::endl;
 
+			for (size_t y = 0; y < 3; y++){
+				for (size_t i = 0; i < 3; i++){
+					std::cout << cameraOrientation[y][i] << ",";
+				}
+				std::cout << "\n";
+			}
+
 		} else if (event.key.keysym.sym == SDLK_c) {
-			glm::mat3 clock_rot = glm::mat3(
+			glm::mat3 countClock_rot = glm::mat3(
  			  	cos(theta), 0, -sin(theta), // first column (not row!)
    				0, 1, 0, // second column
    				sin(theta),0, cos(theta)  // third column
 			);
-			cameraPos = cameraPos * clock_rot;
+			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			cameraOrientation = cameraOrientation * countClock_rot;
+			cameraPos = cameraPos * cameraOrientation;
+			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+
 			std::cout << "ROTATE Y COUNTER-CLOCKWISE" << std::endl;
 
 		} else if (event.key.keysym.sym == SDLK_z) {
@@ -551,7 +591,8 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos) {
    				0, 1, 0, // second column
    				sin(-theta),0, cos(-theta)  // third column
 			);
-			cameraPos = cameraPos * clock_rot;
+			cameraOrientation = cameraOrientation * clock_rot;
+			cameraPos = cameraPos * cameraOrientation;
 			std::cout << "ROTATE Y CLOCKWISE" << std::endl;
 
 		} else if (event.key.keysym.sym == SDLK_t) {
@@ -582,11 +623,16 @@ int main(int argc, char *argv[]) {
 	const float objScaler = 0.35;
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 	glm::vec3 cameraPos = glm::vec3(0,0,4);
+	glm::mat3 camOrientation = glm::mat3(
+		//									   | Right | Up  | Forward |
+		1, 0, 0, // first column (not row!)  x |   1   ,  0  ,    0    |
+		0, 1, 0, // second column		     y |   0   ,  1  ,    0    |
+		0, 0, 1  // third column			 z |   0   ,  0  ,    1    |
+	);
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
-		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos);
-		handleEvent(event, window, cameraPos);
+		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos, camOrientation);
 		draw(window, triangles, cameraPos);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
