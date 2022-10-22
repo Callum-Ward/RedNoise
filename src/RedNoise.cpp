@@ -63,7 +63,7 @@ std::vector<std::vector<int>> getLineCoords(CanvasPoint from, CanvasPoint to){
 
 float getPointDepth(CanvasPoint v0, CanvasPoint v1, int curX,int curY) {
 
-	float ratio = ((curY-v0.y)+ abs(curX-v0.x)) /((v1.y- v0.y) + abs(v1.x - v0.x));
+	float ratio = ((curY-v0.y)+ abs(curX-v0.x)) /((v1.y- v0.y) + abs(v1.x - v0.x)); //always pos
 	//std::cout << "ratio " << ratio << "\n";
 	
 	float depthRange = v1.depth - v0.depth;
@@ -75,9 +75,11 @@ float getPointDepth(CanvasPoint v0, CanvasPoint v1, int curX,int curY) {
 
 void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour,std::vector<std::vector<float>> &depthBuffer) {
 	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+	//std::cout << "we made it kind of\n";
+
 	if (from.x == to.x && from.y == to.y && from.x>=0 && from.x < window.width && from.y >=0 && from.y < window.height) {
 		if (from.depth > depthBuffer[from.x][from.y]){
-			depthBuffer[from.x][from.y] = from.depth;
+			depthBuffer[from.x][from.y] = (1/ (1+exp(-from.depth)));
 			window.setPixelColour(from.x,from.y, colour_32);
 		}
 	} else {
@@ -91,14 +93,17 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 
 			int x = round(from.x + xStepSize*i);
 			int y = round(from.y + yStepSize*i);
-			if (x>=0 && x < window.width && y>=0 && y < window.height) {
+			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
+				//std::cout << "----------\n";
 				//std::cout << "x " << x << "  y " << y << "\n";
 				float depth = getPointDepth(from,to,x,y) ; //sigmoid function outputs 0-1 range
 				//std::cout << "   |   parents depth " << from.depth << " & " << to.depth << " child depth " << depth << "   |";
+				//if (1/ (1+exp(depth)) > depthBuffer[x][y]){
 				if (depth > depthBuffer[x][y]){
+
 					//std::cout << "coord in range\n";
 					//std::cout << "depth buffer before " << depthBuffer[x][y] << "\n";
-					depthBuffer[x][y] = depth;
+					depthBuffer[x][y] = (depth);
 					//std::cout << "depth buffer after " << depthBuffer[x][y] << "\n";
 					window.setPixelColour(x,y, colour_32);
 				} else {
@@ -345,6 +350,7 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 		std::swap(triangle.v1().x,triangle.v2().x);
 		std::swap(triangle.v1().depth,triangle.v2().depth);
 	}
+	//std::cout << "we made it draw filled tri\n";
 	
 
 	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
@@ -361,6 +367,7 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 	yStepSize[2] = (y[2]-y[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1]));
 	float curX[2] = {x[0],x[0]};
 	float curY[2] = {y[0],y[0]};
+	//std::cout << "y[0] = " << y[0] << "  y[1] = " << y[1] << "  y[2] = " << y[2] << "\n"; 
 
 	for (size_t row = y[0]; row <= y[2]; row++){
 		if (row == y[1]){ //if v0.y == v1.y == v2.y then only v1 to v2 is drawn
@@ -369,18 +376,30 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 			curX[0] = x[1];
 			curY[0] = y[1];		
 		}
+		//std::cout << "row " << row << " of " << y[2] << "\n";
 		for (size_t i = 0; i < 2; i++){
 
 			while(round(curY[i]) == row){	
 
 				if (row <= y[1]) {
+					//std::cout << "made it to lineStart\n";
 					lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v0(),triangle.v1(), round(curX[0]),row)); 
 					//std::cout << "lineStart depths v0 " << triangle.v0().depth << "  v1 " << triangle.v1().depth << "  new depth  " << lineStart.depth << "\n";
 				} else {
 					lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v1(),triangle.v2(), round(curX[0]),row)); 
 				}
+
+				//std::cout << "made it to lineEnd\n";
+
 				lineEnd = CanvasPoint(round(curX[1]),row, getPointDepth(triangle.v0(),triangle.v2(), round(curX[1]),row));
 				//std::cout << "draw line: " << lineStart.x << "," << lineStart.y << " to " << lineEnd.x << "," << lineEnd.y << "\n"; 
+				//std::cout << "we made it get depth point\n";
+
+				if (lineStart.depth < 0 && lineEnd.depth < 0) {
+					//std::cout << "continue\n";
+					continue;
+				}
+				//std::cout << "made it to draw line depth\n";
 				drawLineDepth(window, lineStart,lineEnd,colour,depthBuffer);
 				//drawLine(window,lineStart,lineEnd,colour);
 				if (yStepSize[i] == 0) break;
@@ -440,11 +459,22 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	return triangles;
 }
 
-CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition, glm::vec3 vertexPosition,float focalLength, float planeScaler) {
-	int x = round(planeScaler * focalLength * ((vertexPosition.x  - cameraPosition.x)/ (vertexPosition.z - cameraPosition.z)) + (window.width/2));
-	int y = round(planeScaler * focalLength * ((vertexPosition.y - cameraPosition.y) / (vertexPosition.z - cameraPosition.z)) + (window.height/2));
+CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition,glm::mat3 camOrientation, glm::vec3 vertexPosition,float focalLength, float planeScaler) {
+	//std::cout << "we made it canvas intersection\n";
+
+	int x = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).x / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.width/2));
+	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
+
+	//std::cout << "camera pos " << (cameraPosition*camOrientation).x << "," << (cameraPosition*camOrientation).y << "," << (cameraPosition*camOrientation).z << "\n";
+	
+	
 	//std::cout << "vertexPosition " << vertexPosition.z << "\n";
-	return CanvasPoint(x,y,(1/(1+exp(-vertexPosition.z))));
+	float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z;
+	//std::cout << "depth " << updatedDepth << "we made it\n";
+
+	updatedDepth = 1 / (1 + exp(updatedDepth)); //sigmoid to allow depth printing function
+
+	return CanvasPoint(x,y,updatedDepth);
 }
 
 void drawDepth(DrawingWindow &window,std::vector<std::vector<float>> depthBuffer) {
@@ -459,23 +489,62 @@ void drawDepth(DrawingWindow &window,std::vector<std::vector<float>> depthBuffer
 	}
 }
 
-void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 cameraPos ) {
+void lookAt(glm::mat3 &cameraOrientation,glm::vec3 cameraPos ,glm::vec3 point) {
+  	//glm::vec3 forward = glm::vec3(0,0,0.5); //CP vertical with forward
+	glm::vec3 forward = cameraPos-point;
+	forward = glm::normalize(forward);
+	//std::cout << "foward: " << forward.x << "," << forward.y << "," << forward.z << "\n";
+  	glm::vec3 right = glm::cross(glm::vec3(0,1,0),forward); //CP vertical with forward
+
+  	//glm::vec3 right = glm::vec3(1,0,0); //CP vertical with forward
+	//std::cout << "right: " << right.x << "," << right.y << "," << right.z << "\n";
+  	glm::vec3 up = glm::vec3(0,1,0); //CP vertical with forward
+	//glm::vec3 up = glm::cross(forward,right);
+	//std::cout << "up: " << up.x << "," << up.y << "," << up.z << "\n";
+
+
+	cameraOrientation = glm::mat3(right,up,forward);
+
+}
+
+void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAtPoint) {
+	const float orbitStep = M_PI/30;
+	glm::mat3 clock_rot = glm::mat3(
+			cos(-orbitStep), 0, -sin(-orbitStep), // first column (not row!)
+			0, 1, 0, // second column
+			sin(-orbitStep),0, cos(-orbitStep)  // third column
+	);
+	cameraPos = cameraPos * clock_rot; 
+
+	lookAt(cameraOrientation,cameraPos,lookAtPoint);
+
+
+}
+
+void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 	std::vector<std::vector<float>> depthBuffer(window.width,std::vector<float>(window.height));
 	const float focalL = 2;
-	const float planeScaler = HEIGHT/focalL + HEIGHT/5;
+	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 
-	//std::cout << "camera pos in draw " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-	//int ok;
-	//std::cin >> ok;
+	glm::vec3 lookAtPoint = glm::vec3(0,0,0);
+	orbit(cameraPos,cameraOrientation,lookAtPoint);
+	//std::cout << "draw speed\n";
+
+	//lookAt(cameraOrientation,cameraPos,lookAtPoint);
 
 	window.clearPixels();
 	for (ModelTriangle triangle : triangles) {
 				
 		CanvasPoint v[3];
 		for (size_t i = 0; i <3; i++){
-			v[i] = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
+			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
 			//std::cout << "New z: " << v[i].depth << "\n";
 		}
+		if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue;
+		if (v[0].y < 0 && v[1].y < 0 && v[2].y < 0) continue;
+		if (v[0].x > window.width && v[1].x > window.width && v[2].x < window.width) continue;
+		if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
+
 		drawFilledTriangle(window,CanvasTriangle(v[0],v[1],v[2]),triangle.colour,depthBuffer);
 
 	}
@@ -490,10 +559,10 @@ void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 
 }
 
 void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation) {
-	const float xStep = 0.01; //objects coords scaled 0-1
-	const float yStep = 0.01;
-	const float zStep = 0.01;
-	const float theta = M_PI / 30; // 9 degree increments
+	const float xStep = 0.05; //objects coords scaled 0-1
+	const float yStep = 0.05;
+	const float zStep = 0.05;
+	const float theta = M_PI/3 ; // 9 degree increments
 
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) { 
@@ -512,6 +581,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
 			std::cout << "DOWN" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_w) {
 			cameraPos.z = cameraPos.z - zStep;
+			std::cout << "z " << cameraPos.z << std::endl;
 			std::cout << "FORWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_s) {
 			cameraPos.z = cameraPos.z + zStep;
@@ -523,28 +593,13 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
    				0, cos(theta), sin(theta), // second column
    				0, -sin(theta), cos(theta)  // third column
 			);
-			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-			for (size_t y = 0; y < 3; y++){
-				for (size_t i = 0; i < 3; i++){
-					std::cout << cameraOrientation[y][i] << ",";
-				}
-				std::cout << "\n";
-			}
+			//std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
 			
-			cameraOrientation = cameraOrientation * countClock_rot;
-			cameraPos = cameraPos * cameraOrientation;
+			cameraPos = cameraPos * countClock_rot;
+
+			//std::cout << "cameraPosAdter " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			
 			std::cout << "ROTATE X COUNTER-CLOCKWISE" << std::endl;
-			std::cout << "cameraPosAdter " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-				for (size_t y = 0; y < 3; y++)
-			{
-				for (size_t i = 0; i < 3; i++)
-				{
-					std::cout << cameraOrientation[y][i] << ",";
-				}
-				std::cout << "\n";
-			}
-
-
 
 		} else if (event.key.keysym.sym == SDLK_a) {
 			glm::mat3 clock_rot = glm::mat3(
@@ -552,48 +607,41 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
    				0, cos(-theta), sin(-theta), // second column
    				0, -sin(-theta), cos(-theta)  // third column
 			);
-			for (size_t y = 0; y < 3; y++){
-				for (size_t i = 0; i < 3; i++){
-					std::cout << cameraOrientation[y][i] << ",";
-				}
-				std::cout << "\n";
-			}
-			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-			cameraOrientation = cameraOrientation * clock_rot;
-			cameraPos = cameraPos * cameraOrientation;
-			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-
+			
+			//std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			cameraPos = cameraPos * clock_rot;
+			//cameraPos = cameraPos * clock_rot;
+			//std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			
 			std::cout << "ROTATE X CLOCKWISE" << std::endl;
 
-			for (size_t y = 0; y < 3; y++){
-				for (size_t i = 0; i < 3; i++){
-					std::cout << cameraOrientation[y][i] << ",";
-				}
-				std::cout << "\n";
-			}
-
 		} else if (event.key.keysym.sym == SDLK_c) {
+
 			glm::mat3 countClock_rot = glm::mat3(
  			  	cos(theta), 0, -sin(theta), // first column (not row!)
    				0, 1, 0, // second column
    				sin(theta),0, cos(theta)  // third column
 			);
 			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-			cameraOrientation = cameraOrientation * countClock_rot;
-			cameraPos = cameraPos * cameraOrientation;
-			std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			cameraPos = cameraPos * countClock_rot;
+			//cameraPos = cameraPos * cameraOrientation;
+			std::cout << "cameraPosAfter " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
 
-			std::cout << "ROTATE Y COUNTER-CLOCKWISE" << std::endl;
+			std::cout << "ROTATE Y CLOCKWISE" << std::endl;
 
 		} else if (event.key.keysym.sym == SDLK_z) {
+
 			glm::mat3 clock_rot = glm::mat3(
  			  	cos(-theta), 0, -sin(-theta), // first column (not row!)
    				0, 1, 0, // second column
    				sin(-theta),0, cos(-theta)  // third column
 			);
-			cameraOrientation = cameraOrientation * clock_rot;
-			cameraPos = cameraPos * cameraOrientation;
-			std::cout << "ROTATE Y CLOCKWISE" << std::endl;
+
+			cameraPos = cameraPos * clock_rot;
+			lookAt(cameraOrientation,cameraPos, glm::vec3(0,0,0));
+
+		
+			std::cout << "ROTATE Y COUNTER-CLOCKWISE" << std::endl;
 
 		} else if (event.key.keysym.sym == SDLK_t) {
 
@@ -606,7 +654,33 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
 			std::cout << "t" << std::endl;
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
-	
+
+		} else if (event.key.keysym.sym == SDLK_l) {
+
+			
+			for (size_t i = 0; i < 3; i++){
+				for (size_t j = 0; j < 3; j++)
+				{
+					std::cout << cameraOrientation[i][j] << " , ";
+				}
+				std::cout << "\n";
+			}
+			std::cout << "\n";
+
+
+			glm::vec3 lookAtPoint = glm::vec3(0,0,0);
+			lookAt(cameraOrientation,cameraPos,lookAtPoint);
+
+			for (size_t i = 0; i < 3; i++){
+				for (size_t j = 0; j < 3; j++)
+				{
+					std::cout << cameraOrientation[i][j] << " , ";
+				}
+				std::cout << "\n";
+			}
+			
+			
+
 			
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
@@ -622,7 +696,7 @@ int main(int argc, char *argv[]) {
 
 	const float objScaler = 0.35;
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	glm::vec3 cameraPos = glm::vec3(0,0,4);
+	glm::vec3 cameraPos = glm::vec3(0,0,5);
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
 		1, 0, 0, // first column (not row!)  x |   1   ,  0  ,    0    |
@@ -633,7 +707,7 @@ int main(int argc, char *argv[]) {
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos, camOrientation);
-		draw(window, triangles, cameraPos);
+		draw(window, triangles, cameraPos,camOrientation);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
