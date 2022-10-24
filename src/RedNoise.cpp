@@ -489,10 +489,12 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 		glm::vec3 SPVector = cameraPos - triangles[i].vertices[0];
 		glm::mat3 DEMatrix(-ray, e0, e1);
 		const glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
-		if (possibleSolution.t < theRay.distanceFromCamera) {
-			theRay.intersectionPoint = triangles[i].vertices[0] + possibleSolution.y * e0 + possibleSolution.z * e1;
-			theRay.distanceFromCamera = possibleSolution.x;
-			theRay.intersectedTriangle = triangles[i];
+		if (possibleSolution.x < theRay.distanceFromCamera && possibleSolution.x > 0) {
+			if ((possibleSolution.y >= 0.0) && (possibleSolution.y <= 1.0) && (possibleSolution.z >= 0.0) && (possibleSolution.z <= 1.0) && (possibleSolution.y + possibleSolution.z) <= 1.0) {
+				theRay.intersectionPoint = triangles[i].vertices[0] + possibleSolution.y * e0 + possibleSolution.z * e1;
+				theRay.distanceFromCamera = possibleSolution.x;
+				theRay.intersectedTriangle = triangles[i];
+			}
 		}
 	}
 	return theRay;
