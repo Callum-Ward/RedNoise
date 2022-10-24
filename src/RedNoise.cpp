@@ -5,6 +5,7 @@
 #include <ModelTriangle.h>
 #include <Colour.h>
 #include <TextureMap.h>
+#include <RayTriangleIntersection.h>
 #include <glm/glm.hpp>
 #include <fstream>
 #include <vector>
@@ -229,7 +230,7 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle triangle,CanvasPoint st
 	return rowTexture;
 }
 
-TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int vertex){
+TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int vertex) {
 	TexturePoint textureP;
 	CanvasPoint bigV,smallV; //bigV refers to the vertex with larger y, ratio based off y 
 
@@ -440,7 +441,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 			if (sections[0] == "v") {
-				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
+				glm::vec3 newV = glm::vec3(scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
 				//std::cout << -1*newV.x << ","<< newV.y << "," << newV.z<< "\n";
 				vertices.push_back(newV);
 			} else if (sections[0] == "f") {
@@ -475,6 +476,26 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	updatedDepth = 1 / (1 + exp(updatedDepth)); //sigmoid to allow depth printing function
 
 	return CanvasPoint(x,y,updatedDepth);
+}
+
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles) {
+
+	RayTriangleIntersection theRay =  RayTriangleIntersection();
+	theRay.distanceFromCamera = 1000;
+
+	for (size_t i=0;i<triangles.size();i++) {
+		glm::vec3 e0 = triangles[i].vertices[1] - triangles[i].vertices[0];
+		glm::vec3 e1 = triangles[i].vertices[2] - triangles[i].vertices[0];
+		glm::vec3 SPVector = cameraPos - triangles[i].vertices[0];
+		glm::mat3 DEMatrix(-ray, e0, e1);
+		const glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+		if (possibleSolution.t < theRay.distanceFromCamera) {
+			theRay.intersectionPoint = triangles[i].vertices[0] + possibleSolution.y * e0 + possibleSolution.z * e1;
+			theRay.distanceFromCamera = possibleSolution.x;
+			theRay.intersectedTriangle = triangles[i];
+		}
+	}
+	return theRay;
 }
 
 void drawDepth(DrawingWindow &window,std::vector<std::vector<float>> depthBuffer) {
@@ -526,6 +547,15 @@ void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 
+	glm::vec3 testCamPos = glm::vec3(0,0,4);
+	glm::vec3 rayDirection = glm::vec3(-0.1,-0.1,-2);
+	
+	RayTriangleIntersection test = getClosestIntersection(rayDirection,testCamPos, triangles);
+	std::cout << "closest distance: " << test.distanceFromCamera << "\n";
+
+	int ok;
+	std::cin >> ok;
+
 	glm::vec3 lookAtPoint = glm::vec3(0,0,0);
 	orbit(cameraPos,cameraOrientation,lookAtPoint);
 	//std::cout << "draw speed\n";
@@ -546,6 +576,8 @@ void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 
 		if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
 
 		drawFilledTriangle(window,CanvasTriangle(v[0],v[1],v[2]),triangle.colour,depthBuffer);
+		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+
 
 	}
 	//drawDepth(window,depthBuffer);
@@ -694,7 +726,7 @@ int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
 
-	const float objScaler = 0.35;
+	const float objScaler = 0.17;
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 	glm::vec3 cameraPos = glm::vec3(0,0,5);
 	glm::mat3 camOrientation = glm::mat3(
