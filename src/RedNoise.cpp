@@ -441,7 +441,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 			if (sections[0] == "v") {
-				glm::vec3 newV = glm::vec3(scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
+				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
 				//std::cout << -1*newV.x << ","<< newV.y << "," << newV.z<< "\n";
 				vertices.push_back(newV);
 			} else if (sections[0] == "f") {
@@ -481,6 +481,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
+
 	theRay.distanceFromCamera = 1000;
 
 	for (size_t i=0;i<triangles.size();i++) {
@@ -488,12 +489,16 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 		glm::vec3 e1 = triangles[i].vertices[2] - triangles[i].vertices[0];
 		glm::vec3 SPVector = cameraPos - triangles[i].vertices[0];
 		glm::mat3 DEMatrix(-ray, e0, e1);
-		const glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
-		if (possibleSolution.x < theRay.distanceFromCamera && possibleSolution.x > 0) {
+		const glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector; //t,u,v
+		
+		if (possibleSolution.x < theRay.distanceFromCamera && possibleSolution.x > 0) { 
 			if ((possibleSolution.y >= 0.0) && (possibleSolution.y <= 1.0) && (possibleSolution.z >= 0.0) && (possibleSolution.z <= 1.0) && (possibleSolution.y + possibleSolution.z) <= 1.0) {
+				//std::cout << "smallest yet " << possibleSolution.x << "\n";
 				theRay.intersectionPoint = triangles[i].vertices[0] + possibleSolution.y * e0 + possibleSolution.z * e1;
 				theRay.distanceFromCamera = possibleSolution.x;
 				theRay.intersectedTriangle = triangles[i];
+				theRay.triangleIndex = size_t(i);
+				//std::cout << "theRay triangle index: " << int(theRay.triangleIndex) <<"\n";
 			}
 		}
 	}
@@ -544,19 +549,51 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
-void draw(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
+void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
+
+	const float focalL = 2;
+	const float planeScaler = HEIGHT;
+
+	//glm::vec3 lookAtPoint = glm::vec3(0,0,0);
+	//orbit(cameraPos,cameraOrientation,lookAtPoint);
+
+	/* glm::vec3 testCamPos = glm::vec3(0,0,4);
+	glm::vec3 rayDirection = glm::vec3(-0.1,-0.1,-2);
+	RayTriangleIntersection test = getClosestIntersection(rayDirection,testCamPos, triangles);
+	std::cout << "closest distance: " << test.distanceFromCamera << "\n";
+	int ok;
+	std::cin >> ok; */
+
+	window.clearPixels();
+	for (float x = 0; x < window.width; x++) {
+		for (float y = 0; y < window.height; y++){
+			//std::cout << "image plane coord " << x << "," << y<<"\n";
+			float newX = (x-(window.width/2))/(focalL*planeScaler) + ((cameraPos*cameraOrientation).x/(cameraPos*cameraOrientation).z); // newX = x/z
+			float newY = (y-window.height/2)/(focalL*planeScaler) + ((cameraPos*cameraOrientation).y/(cameraPos*cameraOrientation).z); //newY = y/z
+			//std::cout << "first section of x eq " << x - (window.width/2) << "\n";
+			//std::cout << "transformed image coord " << newX << " , " << newY<<"\n";
+	
+			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f);
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles);
+			if (inter.distanceFromCamera < 1000 ) {
+				// std::cout << "x: " << x << " y: " << y << "\n";
+				// std::cout << ray.x << "," << ray.y << "," << ray.z << "\n";
+				// std::cout << "ray hit something :)\n";
+				// std::cout << inter.triangleIndex; 
+				Colour colour = triangles[inter.triangleIndex].colour;
+				uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+				window.setPixelColour(x,y,colour_32);
+
+			}
+		}
+	}
+
+}
+
+void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 	std::vector<std::vector<float>> depthBuffer(window.width,std::vector<float>(window.height));
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
-
-	glm::vec3 testCamPos = glm::vec3(0,0,4);
-	glm::vec3 rayDirection = glm::vec3(-0.1,-0.1,-2);
-	
-	RayTriangleIntersection test = getClosestIntersection(rayDirection,testCamPos, triangles);
-	std::cout << "closest distance: " << test.distanceFromCamera << "\n";
-
-	int ok;
-	std::cin >> ok;
 
 	glm::vec3 lookAtPoint = glm::vec3(0,0,0);
 	orbit(cameraPos,cameraOrientation,lookAtPoint);
@@ -728,7 +765,7 @@ int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
 
-	const float objScaler = 0.17;
+	const float objScaler = 0.35;
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 	glm::vec3 cameraPos = glm::vec3(0,0,5);
 	glm::mat3 camOrientation = glm::mat3(
@@ -741,7 +778,8 @@ int main(int argc, char *argv[]) {
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos, camOrientation);
-		draw(window, triangles, cameraPos,camOrientation);
+		drawRayTrace(window, triangles, cameraPos,camOrientation);
+		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
