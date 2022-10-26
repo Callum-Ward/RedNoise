@@ -478,7 +478,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	return CanvasPoint(x,y,updatedDepth);
 }
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles) {
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,glm::mat3 cameraOrientation,std::vector<ModelTriangle> triangles) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 
@@ -487,7 +487,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 	for (size_t i=0;i<triangles.size();i++) {
 		glm::vec3 e0 = triangles[i].vertices[1] - triangles[i].vertices[0];
 		glm::vec3 e1 = triangles[i].vertices[2] - triangles[i].vertices[0];
-		glm::vec3 SPVector = cameraPos - triangles[i].vertices[0];
+		glm::vec3 SPVector = (cameraPos - triangles[i].vertices[0]);
 		glm::mat3 DEMatrix(-ray, e0, e1);
 		const glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector; //t,u,v
 		
@@ -549,20 +549,19 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
-int isPixelShadow(glm::vec3 pixel ,glm::vec3 lightSource,std::vector<ModelTriangle> triangles) {
-	glm::vec3 shadowRay = lightSource - pixel;
-	RayTriangleIntersection inter = getClosestIntersection(shadowRay,pixel,triangles);
+int isPixelShadow(glm::vec3 pixel ,glm::vec3 lightSource,glm::mat3 cameraOrientation,std::vector<ModelTriangle> triangles) {
+	glm::vec3 shadowRay = (lightSource - pixel);
+	RayTriangleIntersection inter = getClosestIntersection(shadowRay,pixel,cameraOrientation,triangles);
 	if (inter.distanceFromCamera > 1){
 		return 0;
 	}
 	return 1;
-
 }
 
-void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
+void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
 
 	const float focalL = 2;
-	const float planeScaler = HEIGHT;
+	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 
 	//glm::vec3 lookAtPoint = glm::vec3(0,0,0);
 	//orbit(cameraPos,cameraOrientation,lookAtPoint);
@@ -584,15 +583,15 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 			//std::cout << "transformed image coord " << newX << " , " << newY<<"\n";
 	
 			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f);
-			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles);
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,cameraOrientation,triangles);
 			if (inter.distanceFromCamera < 1000 ) {
 				// std::cout << "x: " << x << " y: " << y << "\n";
 				// std::cout << ray.x << "," << ray.y << "," << ray.z << "\n";
 				// std::cout << "ray hit something :)\n";
 				// std::cout << inter.triangleIndex; 
 				
-				glm::vec3 lightSource = glm::vec3(0,0.75,0);
-				if (!isPixelShadow(inter.intersectionPoint,lightSource,triangles)) {
+				glm::vec3 lightSource = glm::vec3(0,0.85,0);
+				if (!isPixelShadow(inter.intersectionPoint,lightSource,cameraOrientation,triangles)) {
 					Colour colour = triangles[inter.triangleIndex].colour;
 					uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
 					window.setPixelColour(x,y,colour_32);
@@ -603,16 +602,26 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 
 }
 
+void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
+	const float focalL = 2;
+	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
+	window.clearPixels();
+	for (ModelTriangle triangle : triangles) {
+		CanvasPoint v[3];
+		for (size_t i = 0; i <3; i++){
+			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
+		}
+		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+	}
+}
+
 void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 	std::vector<std::vector<float>> depthBuffer(window.width,std::vector<float>(window.height));
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 
-	glm::vec3 lookAtPoint = glm::vec3(0,0,0);
-	orbit(cameraPos,cameraOrientation,lookAtPoint);
-	//std::cout << "draw speed\n";
-
-	//lookAt(cameraOrientation,cameraPos,lookAtPoint);
+	//glm::vec3 lookAtPoint = glm::vec3(0,0,0);
+	//orbit(cameraPos,cameraOrientation,lookAtPoint);
 
 	window.clearPixels();
 	for (ModelTriangle triangle : triangles) {
@@ -622,32 +631,25 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> triang
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
 			//std::cout << "New z: " << v[i].depth << "\n";
 		}
-		if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue;
+		if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue; //early validation to save time processing objects outside the image plane
 		if (v[0].y < 0 && v[1].y < 0 && v[2].y < 0) continue;
 		if (v[0].x > window.width && v[1].x > window.width && v[2].x < window.width) continue;
 		if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
 
 		drawFilledTriangle(window,CanvasTriangle(v[0],v[1],v[2]),triangle.colour,depthBuffer);
-		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+		//drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
 
 
 	}
 	//drawDepth(window,depthBuffer);
-	/* for (ModelTriangle triangle : triangles) {
-		CanvasPoint v[3];
-		for (size_t i = 0; i <3; i++){
-			v[i] = getCanvasIntersectionPoint(window, cameraPos,triangle.vertices[i],focalL,planeScaler);
-		}
-		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
-	} */
 }
 
-void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation) {
+void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
 	const float xStep = 0.05; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
-	const float theta = M_PI/3 ; // 9 degree increments
-
+	const float theta = M_PI/13 ; // 9 degree increments
+	
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) { 
 			std::cout << "LEFT" << std::endl;
@@ -670,19 +672,13 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
 		} else if (event.key.keysym.sym == SDLK_s) {
 			cameraPos.z = cameraPos.z + zStep;
 			std::cout << "BACKWARD" << std::endl;
-		} else if (event.key.keysym.sym == SDLK_d) {
-			
+		} else if (event.key.keysym.sym == SDLK_d) {	
 			glm::mat3 countClock_rot = glm::mat3(
  			  	1, 0, 0, // first column (not row!)
    				0, cos(theta), sin(theta), // second column
    				0, -sin(theta), cos(theta)  // third column
 			);
-			//std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-			
 			cameraPos = cameraPos * countClock_rot;
-
-			//std::cout << "cameraPosAdter " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-			
 			std::cout << "ROTATE X COUNTER-CLOCKWISE" << std::endl;
 
 		} else if (event.key.keysym.sym == SDLK_a) {
@@ -691,14 +687,8 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
    				0, cos(-theta), sin(-theta), // second column
    				0, -sin(-theta), cos(-theta)  // third column
 			);
-			
-			//std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
 			cameraPos = cameraPos * clock_rot;
-			//cameraPos = cameraPos * clock_rot;
-			//std::cout << "cameraPosBefore " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
-			
 			std::cout << "ROTATE X CLOCKWISE" << std::endl;
-
 		} else if (event.key.keysym.sym == SDLK_c) {
 
 			glm::mat3 countClock_rot = glm::mat3(
@@ -710,6 +700,8 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
 			cameraPos = cameraPos * countClock_rot;
 			//cameraPos = cameraPos * cameraOrientation;
 			std::cout << "cameraPosAfter " << cameraPos.x << "," << cameraPos.y << "," << cameraPos.z << "\n";
+			lookAt(cameraOrientation,cameraPos, glm::vec3(0,0,0));
+
 
 			std::cout << "ROTATE Y CLOCKWISE" << std::endl;
 
@@ -739,18 +731,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 
-		} else if (event.key.keysym.sym == SDLK_l) {
-
-			
-			for (size_t i = 0; i < 3; i++){
-				for (size_t j = 0; j < 3; j++)
-				{
-					std::cout << cameraOrientation[i][j] << " , ";
-				}
-				std::cout << "\n";
-			}
-			std::cout << "\n";
-
+		} else if (event.key.keysym.sym == SDLK_o) {
 
 			glm::vec3 lookAtPoint = glm::vec3(0,0,0);
 			lookAt(cameraOrientation,cameraPos,lookAtPoint);
@@ -764,8 +745,17 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos, g
 			}
 			
 			
+		} else if (event.key.keysym.sym == SDLK_f) {
+			renderTypeIndex = 0;
+			std::cout << "render type changed to draw wireframe scene\n";
+		} else if (event.key.keysym.sym == SDLK_g) {
+			renderTypeIndex = 1;
+			std::cout << "render type changed to draw rasterised scene\n";
 
-			
+		} else if (event.key.keysym.sym == SDLK_h) {
+			renderTypeIndex = 2;
+			std::cout << "render type changed to draw ray trace scene\n";
+
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
 			window.saveBMP("output.bmp"); 
@@ -787,16 +777,31 @@ int main(int argc, char *argv[]) {
 		0, 1, 0, // second column		     y |   0   ,  1  ,    0    |
 		0, 0, 1  // third column			 z |   0   ,  0  ,    1    |
 	);
+	
+	int renderTypeIndex = 0;
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
-		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos, camOrientation);
-		drawRayTrace(window, triangles, cameraPos,camOrientation);
+		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos, camOrientation,renderTypeIndex);
+		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
+		if (renderTypeIndex == 0) {
+			drawWireframeScene(window,triangles,cameraPos,camOrientation);
+		} else if(renderTypeIndex == 1) {
+			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
+		} else if (renderTypeIndex == 2) {
+			drawRayTrace(window,triangles,cameraPos,camOrientation);
+			window.renderFrame();
+			std::cout<< "Ray trace scene rendered! Enter Y to continue...\n";
+			char ok;
+			std::cin >> ok;
+			renderTypeIndex = 0;
+		}
+
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
-		std::cout << "Render complete!\n";
+		/* std::cout << "Render complete!\n";
 		int x;
-		std::cin >> x;
+		std::cin >> x; */
 	}
 }
