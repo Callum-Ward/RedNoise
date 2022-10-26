@@ -491,13 +491,13 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 		glm::mat3 DEMatrix(-ray, e0, e1);
 		const glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector; //t,u,v
 		
-		if (possibleSolution.x < theRay.distanceFromCamera && possibleSolution.x > 0) { 
+		if (possibleSolution.x < theRay.distanceFromCamera && possibleSolution.x > 0.0005 ) { 
 			if ((possibleSolution.y >= 0.0) && (possibleSolution.y <= 1.0) && (possibleSolution.z >= 0.0) && (possibleSolution.z <= 1.0) && (possibleSolution.y + possibleSolution.z) <= 1.0) {
 				//std::cout << "smallest yet " << possibleSolution.x << "\n";
 				theRay.intersectionPoint = triangles[i].vertices[0] + possibleSolution.y * e0 + possibleSolution.z * e1;
 				theRay.distanceFromCamera = possibleSolution.x;
 				theRay.intersectedTriangle = triangles[i];
-				theRay.triangleIndex = size_t(i);
+				theRay.triangleIndex = i;
 				//std::cout << "theRay triangle index: " << int(theRay.triangleIndex) <<"\n";
 			}
 		}
@@ -549,6 +549,16 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
+int isPixelShadow(glm::vec3 pixel ,glm::vec3 lightSource,std::vector<ModelTriangle> triangles) {
+	glm::vec3 shadowRay = lightSource - pixel;
+	RayTriangleIntersection inter = getClosestIntersection(shadowRay,pixel,triangles);
+	if (inter.distanceFromCamera > 1){
+		return 0;
+	}
+	return 1;
+
+}
+
 void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 
 	const float focalL = 2;
@@ -580,10 +590,13 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 				// std::cout << ray.x << "," << ray.y << "," << ray.z << "\n";
 				// std::cout << "ray hit something :)\n";
 				// std::cout << inter.triangleIndex; 
-				Colour colour = triangles[inter.triangleIndex].colour;
-				uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
-				window.setPixelColour(x,y,colour_32);
-
+				
+				glm::vec3 lightSource = glm::vec3(0,0.75,0);
+				if (!isPixelShadow(inter.intersectionPoint,lightSource,triangles)) {
+					Colour colour = triangles[inter.triangleIndex].colour;
+					uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+					window.setPixelColour(x,y,colour_32);
+				}
 			}
 		}
 	}
@@ -782,5 +795,8 @@ int main(int argc, char *argv[]) {
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
+		std::cout << "Render complete!\n";
+		int x;
+		std::cin >> x;
 	}
 }
