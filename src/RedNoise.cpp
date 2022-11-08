@@ -473,7 +473,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	return CanvasPoint(x,y,updatedDepth);
 }
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,glm::mat3 cameraOrientation,std::vector<ModelTriangle> triangles) {
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 
@@ -544,15 +544,6 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
-int isPixelShadow(glm::vec3 pixel ,glm::vec3 lightSource,glm::mat3 cameraOrientation,std::vector<ModelTriangle> triangles) {
-	glm::vec3 shadowRay = (lightSource - pixel);
-	RayTriangleIntersection inter = getClosestIntersection(shadowRay,pixel,cameraOrientation,triangles);
-	if (inter.distanceFromCamera > 1){
-		return 0;
-	}
-	return 1;
-}
-
 void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
 
 	const float focalL = 2;
@@ -580,17 +571,25 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 	
 			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
 			ray = ray * glm::inverse(cameraOrientation);
-			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,cameraOrientation,triangles);
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles);
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
 				// std::cout << "x: " << x << " y: " << y << "\n";
 				// std::cout << ray.x << "," << ray.y << "," << ray.z << "\n";
 				// std::cout << "ray hit something :)\n";
 				// std::cout << inter.triangleIndex; 
 				
-				glm::vec3 lightSource = glm::vec3(0,0.85,0);
-				if (!isPixelShadow(inter.intersectionPoint,lightSource,cameraOrientation,triangles)) {
+				glm::vec3 lightSource = glm::vec3(0,0.8,1);
+				//const float rayInvScalar = 10; 
+				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
+				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
+			
+				if (shadowInter.distanceFromCamera > 1) {
 					Colour colour = triangles[inter.triangleIndex].colour;
-					uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+
+					float proxBrit = 1 /( 1.5* pow(glm::length(shadowInter.intersectionPoint-inter.intersectionPoint),2));
+					if (proxBrit > 1) proxBrit =1;
+					//proxBrit =1 ;
+					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * proxBrit)) << 16) + (int(round(colour.green * proxBrit)) << 8) + int(round(colour.blue * proxBrit));
 					window.setPixelColour(x,y,colour_32);
 				}
 			}
