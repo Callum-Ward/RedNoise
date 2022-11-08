@@ -465,16 +465,11 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 
 	int x = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).x / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.width/2));
 	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
-
 	//std::cout << "camera pos " << (cameraPosition*camOrientation).x << "," << (cameraPosition*camOrientation).y << "," << (cameraPosition*camOrientation).z << "\n";
-	
-	
 	//std::cout << "vertexPosition " << vertexPosition.z << "\n";
 	float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z;
 	//std::cout << "depth " << updatedDepth << "we made it\n";
-
 	updatedDepth = 1 / (1 + exp(updatedDepth)); //sigmoid to allow depth printing function
-
 	return CanvasPoint(x,y,updatedDepth);
 }
 
@@ -577,14 +572,16 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 	for (float x = 0; x < window.width; x++) {
 		for (float y = 0; y < window.height; y++){
 			//std::cout << "image plane coord " << x << "," << y<<"\n";
-			float newX = (x-(window.width/2))/(focalL*planeScaler) + ((cameraPos*cameraOrientation).x/(cameraPos*cameraOrientation).z); // newX = x/z
-			float newY = (y-window.height/2)/(focalL*planeScaler) + ((cameraPos*cameraOrientation).y/(cameraPos*cameraOrientation).z); //newY = y/z
-			//std::cout << "first section of x eq " << x - (window.width/2) << "\n";
-			//std::cout << "transformed image coord " << newX << " , " << newY<<"\n";
+			//float newX = (x-(window.width/2)) / (focalL*planeScaler) + ((cameraPos*cameraOrientation).x/(cameraPos*cameraOrientation).z); 
+			float newX = (x-(window.width/2)) / (focalL*planeScaler); 
+			//newX = base x value + x/z
+			//float newY = (y-window.height/2) / (focalL*planeScaler) + ((cameraPos*cameraOrientation).y/(cameraPos*cameraOrientation).z);
+			float newY = (y-window.height/2) / (focalL*planeScaler);
 	
-			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f);
+			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
+			ray = ray * glm::inverse(cameraOrientation);
 			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,cameraOrientation,triangles);
-			if (inter.distanceFromCamera < 1000 ) {
+			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
 				// std::cout << "x: " << x << " y: " << y << "\n";
 				// std::cout << ray.x << "," << ray.y << "," << ray.z << "\n";
 				// std::cout << "ray hit something :)\n";
@@ -716,6 +713,19 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,gl
 			cameraPos = cameraPos * clock_rot;
 			lookAt(cameraOrientation,cameraPos, glm::vec3(0,0,0));
 
+			std::cout << "cameraPos: " << cameraPos.x<<", " <<cameraPos.y<<", " <<cameraPos.z << std::endl;
+			std::cout << "camera Orientation: " << std::endl;
+			for (size_t i = 0; i < 3; i++)
+			{
+				for (size_t j = 0; j < 3; j++)
+				{
+					std::cout << cameraOrientation[i][j] << ",";
+				}
+				std::cout<<"\n";
+			}
+			
+
+
 		
 			std::cout << "ROTATE Y COUNTER-CLOCKWISE" << std::endl;
 
@@ -754,6 +764,16 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,gl
 
 		} else if (event.key.keysym.sym == SDLK_h) {
 			renderTypeIndex = 2;
+			std::cout << "cameraPos: " << cameraPos.z << std::endl;
+			std::cout << "camera Orientation: "<< std::endl;
+			for (size_t i = 0; i < 3; i++)
+			{
+				for (size_t j = 0; j < 3; j++)
+				{
+					std::cout << cameraOrientation[i][j] << ",";
+				}
+				std::cout<<"\n";
+			}
 			std::cout << "render type changed to draw ray trace scene\n";
 
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
