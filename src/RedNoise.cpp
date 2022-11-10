@@ -18,9 +18,12 @@
 #include <unordered_map>
 
 #define WIDTH 960
+#define HEIGHT 720
+//#define WIDTH 640
+//#define HEIGHT 480
 //#define WIDTH 320
 //#define HEIGHT 240
-#define HEIGHT 720
+
 
 std::vector<glm::vec3> interpolateThreeElementValues(glm::vec3 from, glm::vec3 to, float numberOfValues) {
 	std::vector<glm::vec3> fade;
@@ -578,7 +581,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 				// std::cout << "ray hit something :)\n";
 				// std::cout << inter.triangleIndex; 
 				
-				glm::vec3 lightSource = glm::vec3(0,0.8,1);
+				glm::vec3 lightSource = glm::vec3(0,0.75,0);
 				//const float rayInvScalar = 10; 
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
@@ -586,7 +589,8 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 				if (shadowInter.distanceFromCamera > 1) {
 					Colour colour = triangles[inter.triangleIndex].colour;
 
-					float proxBrit = 1 /( 1.5* pow(glm::length(shadowInter.intersectionPoint-inter.intersectionPoint),2));
+					float proxBrit = 1 /(1.2* pow(glm::length(shadowRay),2));
+
 					if (proxBrit > 1) proxBrit =1;
 					//proxBrit =1 ;
 					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * proxBrit)) << 16) + (int(round(colour.green * proxBrit)) << 8) + int(round(colour.blue * proxBrit));
