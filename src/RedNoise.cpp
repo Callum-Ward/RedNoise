@@ -451,7 +451,10 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1;
 				int v1Pos = std::stoi(split(sections[2], '/')[0]) -1;
 				int v2Pos = std::stoi(split(sections[3], '/')[0]) -1;
-				triangles.push_back(ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol));
+				ModelTriangle tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol);
+				glm::vec3 normal = glm::cross(tri.vertices[1] - tri.vertices[0], tri.vertices[2]-tri.vertices[0]);
+				tri.normal = normal;
+				triangles.push_back(tri);
 			} else if (sections[0] == "usemtl") {
 				curCol = objColours[sections[1]];
 			} 	
@@ -581,7 +584,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 				// std::cout << "ray hit something :)\n";
 				// std::cout << inter.triangleIndex; 
 				
-				glm::vec3 lightSource = glm::vec3(0,0.75,0);
+				glm::vec3 lightSource = glm::vec3(0,0.7,0);
 				//const float rayInvScalar = 10; 
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
@@ -589,11 +592,14 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 				if (shadowInter.distanceFromCamera > 1) {
 					Colour colour = triangles[inter.triangleIndex].colour;
 
-					float proxBrit = 1 /(1.2* pow(glm::length(shadowRay),2));
+					//float brightness = 1 /(0.1+ pow(glm::length(shadowRay),2));
+					float brightness = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay));
+		
+					if (brightness > 1) brightness =1;
+					if (brightness < 0) brightness =0;
 
-					if (proxBrit > 1) proxBrit =1;
 					//proxBrit =1 ;
-					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * proxBrit)) << 16) + (int(round(colour.green * proxBrit)) << 8) + int(round(colour.blue * proxBrit));
+					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 					window.setPixelColour(x,y,colour_32);
 				}
 			}
