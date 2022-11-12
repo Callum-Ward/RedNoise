@@ -553,7 +553,10 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
 
 	const float focalL = 2;
-	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
+	//const float planeScaler = HEIGHT/focalL + HEIGHT/3;
+	const float planeScaler = 200 ;
+	
+
 
 	//glm::vec3 lookAtPoint = glm::vec3(0,0,0);
 	//orbit(cameraPos,cameraOrientation,lookAtPoint);
@@ -579,22 +582,24 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 			ray = ray * glm::inverse(cameraOrientation);
 			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles);
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
-				// std::cout << "x: " << x << " y: " << y << "\n";
-				// std::cout << ray.x << "," << ray.y << "," << ray.z << "\n";
-				// std::cout << "ray hit something :)\n";
-				// std::cout << inter.triangleIndex; 
 				
-				glm::vec3 lightSource = glm::vec3(0,0.7,0);
-				//const float rayInvScalar = 10; 
+				glm::vec3 lightSource = glm::vec3(0,0.75,0);
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
 			
 				if (shadowInter.distanceFromCamera > 1) {
 					Colour colour = triangles[inter.triangleIndex].colour;
+					float brightness=0;
+					//------proximity---------
+					brightness += 1 / (0.1+  pow(glm::length(shadowRay),2)); 
+					//----angle of incidence--
+					brightness *= glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
+					//------specular----------
+					glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
+					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
+					if (specular < 0) specular =0;
+					brightness += pow(specular,250);
 
-					//float brightness = 1 /(0.1+ pow(glm::length(shadowRay),2));
-					float brightness = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay));
-		
 					if (brightness > 1) brightness =1;
 					if (brightness < 0) brightness =0;
 
@@ -773,7 +778,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,gl
 
 		} else if (event.key.keysym.sym == SDLK_h) {
 			renderTypeIndex = 2;
-			std::cout << "cameraPos: " << cameraPos.z << std::endl;
+			/* std::cout << "cameraPos: " << cameraPos.z << std::endl;
 			std::cout << "camera Orientation: "<< std::endl;
 			for (size_t i = 0; i < 3; i++)
 			{
@@ -782,7 +787,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,gl
 					std::cout << cameraOrientation[i][j] << ",";
 				}
 				std::cout<<"\n";
-			}
+			} */
 			std::cout << "render type changed to draw ray trace scene\n";
 
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
@@ -799,7 +804,7 @@ int main(int argc, char *argv[]) {
 
 	const float objScaler = 0.35;
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	glm::vec3 cameraPos = glm::vec3(0,0,5);
+	glm::vec3 cameraPos = glm::vec3(0,0,2);
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
 		1, 0, 0, // first column (not row!)  x |   1   ,  0  ,    0    |
