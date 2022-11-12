@@ -553,8 +553,8 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
 
 	const float focalL = 2;
-	//const float planeScaler = HEIGHT/focalL + HEIGHT/3;
-	const float planeScaler = 200 ;
+	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
+	//const float planeScaler = 200 ;
 	
 
 
@@ -586,12 +586,11 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 				glm::vec3 lightSource = glm::vec3(0,0.75,0);
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
-			
+				float brightness=0;
+
 				if (shadowInter.distanceFromCamera > 1) {
-					Colour colour = triangles[inter.triangleIndex].colour;
-					float brightness=0;
 					//------proximity---------
-					brightness += 1 / (0.1+  pow(glm::length(shadowRay),2)); 
+					brightness += 1 / (pow(glm::length(shadowRay),2)); 
 					//----angle of incidence--
 					brightness *= glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
 					//------specular----------
@@ -599,14 +598,14 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
 					if (specular < 0) specular =0;
 					brightness += pow(specular,250);
-
-					if (brightness > 1) brightness =1;
-					if (brightness < 0) brightness =0;
-
-					//proxBrit =1 ;
-					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
-					window.setPixelColour(x,y,colour_32);
+		
 				}
+				brightness += 0.25; //universal suppliment
+				if (brightness > 1) brightness =1;
+				Colour colour = triangles[inter.triangleIndex].colour;
+				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
+				window.setPixelColour(x,y,colour_32);
+
 			}
 		}
 	}
@@ -804,7 +803,7 @@ int main(int argc, char *argv[]) {
 
 	const float objScaler = 0.35;
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	glm::vec3 cameraPos = glm::vec3(0,0,2);
+	glm::vec3 cameraPos = glm::vec3(0,0,5);
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
 		1, 0, 0, // first column (not row!)  x |   1   ,  0  ,    0    |
