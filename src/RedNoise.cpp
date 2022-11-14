@@ -484,6 +484,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 				vNormal += normal;
 			}
 			vNormal /= nbrNormals.size();
+			std::cout << nbrNormals.size() << "\n";
 			normals[index] = vNormal;
 			//std::cout << tri.normals[index][0] << "," << tri.normals[index][1] << "," <<tri.normals[index][2] << "\n";
 			index++;
@@ -531,7 +532,15 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				theRay.intersectedTriangle = triangles[i];
 				theRay.triangleIndex = i;
 				float w = 1 - (u + v);
+				/* std::cout << "normal 1: " << triangles[i].normals[0][0] <<  ", " << triangles[i].normals[0][1] <<  ", " << triangles[i].normals[0][2]<< "\n";
+				std::cout << "normal 2: " << triangles[i].normals[1][0] <<  ", " << triangles[i].normals[1][1] <<  ", " << triangles[i].normals[1][2]<< "\n";
+				std::cout << "normal 3: " << triangles[i].normals[2][0] <<  ", " << triangles[i].normals[2][1] <<  ", " << triangles[i].normals[2][2]<< "\n";
+				std::cout << "w: " << w << " u: " << u << " v: " << v << "\n"; */
 				theRay.normal = (w * triangles[i].normals[0])+(u * triangles[i].normals[1])+(v * triangles[i].normals[2]);
+				/* std::cout << "new normal: " << theRay.normal[0] <<  ", " << theRay.normal[1] <<  ", " << theRay.normal[2] << "\n";
+				std::cout << "\n"; */
+
+				
 			}
 		}
 	}
@@ -611,21 +620,27 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
 				
-				glm::vec3 lightSource = glm::vec3(0,0,1.5);
+				glm::vec3 lightSource = glm::vec3(0,0.5,1);
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
 				float brightness=0;
 
+				if (inter.normal == glm::vec3(0,0,0)) {
+					std::cout << "wtd\n";
+				}
+
 				if (shadowInter.distanceFromCamera > 1) {
 					//------proximity---------
-					brightness += 1 / (pow(glm::length(shadowRay),2)); 
+					//brightness += 1 / (pow(glm::length(shadowRay),2)); 
 					//----angle of incidence--
-					brightness *= glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay)) ;
+					//brightness += glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay)) ;
+					//brightness += glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
 					//------specular----------
 					glm::vec3 reflection = (-shadowRay) - (2.0f * inter.normal * (glm::dot(-shadowRay,inter.normal)));
+					//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
 					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
 					if (specular < 0) specular =0;
-					brightness += pow(specular,100);
+					brightness += pow(specular,250);
 		
 				}
 				brightness += 0; //universal suppliment
@@ -835,12 +850,12 @@ int main(int argc, char *argv[]) {
 	SDL_Event event;
 
 	const float objScaler = 0.35;
-	//std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler);
+	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
+	//std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler);
 
 
 	
-	glm::vec3 cameraPos = glm::vec3(0,0,5);
+	glm::vec3 cameraPos = glm::vec3(0,0.5,2);
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
 		1, 0, 0, // first column (not row!)  x |   1   ,  0  ,    0    |
