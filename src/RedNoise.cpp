@@ -425,21 +425,21 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	std::string colourName;
 	std::vector<std::string> sections;
 
-	if (mtlFilename == "") {
-		std::ifstream MyReadFileMtl(mtlFilename);
-		while (getline (MyReadFileMtl, line)) {
-			sections = split(line, ' ');
-			if (sections.size()>0) {
-				if (sections[0] == "Kd") {
-					objColours.insert({colourName, Colour(colourName,std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]))});
-				} else if (sections[0] == "newmtl") {
-					colourName = sections[1];
-				} 
-			}
-			sections.clear();
+	
+	std::ifstream MyReadFileMtl(mtlFilename);
+	while (getline (MyReadFileMtl, line)) {
+		sections = split(line, ' ');
+		if (sections.size()>0) {
+			if (sections[0] == "Kd") {
+				objColours.insert({colourName, Colour(colourName,std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]))});
+			} else if (sections[0] == "newmtl") {
+				colourName = sections[1];
+			} 
 		}
-		MyReadFileMtl.close();
+		sections.clear();
 	}
+	MyReadFileMtl.close();
+	
 
 	Colour curCol;
 	std::ifstream MyReadFile(objFilename);
@@ -492,7 +492,6 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		triangles[outerTri].normals = normals;
 	}
 
-
 	return triangles;
 }
 
@@ -536,7 +535,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				std::cout << "normal 2: " << triangles[i].normals[1][0] <<  ", " << triangles[i].normals[1][1] <<  ", " << triangles[i].normals[1][2]<< "\n";
 				std::cout << "normal 3: " << triangles[i].normals[2][0] <<  ", " << triangles[i].normals[2][1] <<  ", " << triangles[i].normals[2][2]<< "\n";
 				std::cout << "w: " << w << " u: " << u << " v: " << v << "\n"; */
-				theRay.normal = (w * triangles[i].normals[0])+(u * triangles[i].normals[1])+(v * triangles[i].normals[2]);
+				theRay.normal = glm::normalize((w * triangles[i].normals[0])+(u * triangles[i].normals[1])+(v * triangles[i].normals[2]));
 				/* std::cout << "new normal: " << theRay.normal[0] <<  ", " << theRay.normal[1] <<  ", " << theRay.normal[2] << "\n";
 				std::cout << "\n"; */
 
@@ -593,8 +592,7 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
-
-void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
+void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 lightSource,glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 	//const float planeScaler = 200 ;
@@ -620,7 +618,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
 				
-				glm::vec3 lightSource = glm::vec3(0,0.5,1);
+				
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
 				float brightness=0;
@@ -633,24 +631,30 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 					//------proximity---------
 					//brightness += 1 / (pow(glm::length(shadowRay),2)); 
 					//----angle of incidence--
-					//brightness += glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay)) ;
+					float incidentDot= glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay));
+					if (incidentDot < 0) incidentDot = 0;
+					brightness += incidentDot;
+	
+					
 					//brightness += glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
 					//------specular----------
 					glm::vec3 reflection = (-shadowRay) - (2.0f * inter.normal * (glm::dot(-shadowRay,inter.normal)));
 					//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
 					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
 					if (specular < 0) specular =0;
-					brightness += pow(specular,250);
+					//brightness += pow(specular,250);
 		
 				}
 				brightness += 0; //universal suppliment
 				if (brightness > 1) brightness =1;
 				Colour colour = triangles[inter.triangleIndex].colour;
+
 				if (colour.red == NULL ) {
 					colour.red = 255;
 					colour.blue = 0;
 					colour.green = 0;
-				}
+				}  
+
 				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 				window.setPixelColour(x,y,colour_32);
 
@@ -660,7 +664,42 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> triangles, gl
 
 }
 
-void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
+void drawRayTraceNormals(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 lightSource,glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
+	const float focalL = 2;
+	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
+	//const float planeScaler = 200 ;
+
+	for (float x = 0; x < window.width; x+=10) {
+		for (float y = 0; y < window.height; y+=10){
+
+			float newX = (x-(window.width/2)) / (focalL*planeScaler); 
+			float newY = (y-window.height/2) / (focalL*planeScaler);
+	
+			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
+			ray = ray * glm::inverse(cameraOrientation);
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles);
+
+			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
+				
+				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
+				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
+				
+
+				if (shadowInter.distanceFromCamera > 1) {
+					Colour colour = Colour(0,0,255);
+					uint32_t colour_32 = (255 << 24) + (int(round(colour.red)) << 16) + (int(round(colour.green)) << 8) + int(round(colour.blue));
+					
+				}
+		
+
+			}
+		}
+	}
+
+}
+
+
+void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 	window.clearPixels();
@@ -673,7 +712,7 @@ void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> triangl
 	}
 }
 
-void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
+void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 	std::vector<std::vector<float>> depthBuffer(window.width,std::vector<float>(window.height));
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
@@ -702,7 +741,7 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> triang
 	//drawDepth(window,depthBuffer);
 }
 
-void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
+void handleEvent(SDL_Event event, DrawingWindow &window,glm::vec3 &lightSource, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
 	const float xStep = 0.05; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
@@ -837,10 +876,29 @@ void handleEvent(SDL_Event event, DrawingWindow &window, glm::vec3 &cameraPos,gl
 			} */
 			std::cout << "render type changed to draw ray trace scene\n";
 
+		}  else if (event.key.keysym.sym == SDLK_j) {
+			lightSource[0] +=1;
+			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+		}  else if (event.key.keysym.sym == SDLK_l) {
+			lightSource[0] -=1;
+			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+		}  else if (event.key.keysym.sym == SDLK_i) {
+			lightSource[2] -=1;
+			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+		}  else if (event.key.keysym.sym == SDLK_k) {
+			lightSource[2] +=1;
+			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+		}  else if (event.key.keysym.sym == SDLK_0) {
+			lightSource[1] +=1;
+			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+		}  else if (event.key.keysym.sym == SDLK_o) {
+			lightSource[1] -=1;
+			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+	
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
 			window.saveBMP("output.bmp"); 
-		}
+		} 
 	}
 
 }
@@ -850,12 +908,16 @@ int main(int argc, char *argv[]) {
 	SDL_Event event;
 
 	const float objScaler = 0.35;
-	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	//std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler);
+	//std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
+	std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler); 
 
+	glm::vec3 cameraPos = glm::vec3(0,0.5,2); //position for sphere
+	glm::vec3 lightSource = glm::vec3(-2,0.5,0); //sphere light location
 
+	//glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
+	//glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
 	
-	glm::vec3 cameraPos = glm::vec3(0,0.5,2);
+
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
 		1, 0, 0, // first column (not row!)  x |   1   ,  0  ,    0    |
@@ -867,7 +929,7 @@ int main(int argc, char *argv[]) {
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
-		if (window.pollForInputEvents(event)) handleEvent(event, window, cameraPos, camOrientation,renderTypeIndex);
+		if (window.pollForInputEvents(event)) handleEvent(event, window,lightSource ,cameraPos, camOrientation,renderTypeIndex);
 		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		if (renderTypeIndex == 0) {
@@ -876,12 +938,12 @@ int main(int argc, char *argv[]) {
 			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
 		} else if (renderTypeIndex == 2) {
 			
-			drawRayTrace(window,triangles,cameraPos,camOrientation);
-			window.renderFrame();
+			drawRayTrace(window,triangles,lightSource,cameraPos,camOrientation);
+			/*window.renderFrame();
 			std::cout<< "Ray trace scene rendered! Enter Y to continue...\n";
 			char ok;
 			std::cin >> ok;
-			renderTypeIndex = 0;
+			renderTypeIndex = 0; */
 		}
 
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
