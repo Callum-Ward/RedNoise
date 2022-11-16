@@ -629,31 +629,29 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, g
 
 				if (shadowInter.distanceFromCamera > 1) {
 					//------proximity---------
-					//brightness += 1 / (pow(glm::length(shadowRay),2)); 
+					brightness += 1 / (1.5* pow(glm::length(shadowRay),2)); 
 					//----angle of incidence--
 					float incidentDot= glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay));
 					if (incidentDot < 0) incidentDot = 0;
-					brightness += incidentDot;
-	
-					
+					brightness *= incidentDot;
 					//brightness += glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
 					//------specular----------
 					glm::vec3 reflection = (-shadowRay) - (2.0f * inter.normal * (glm::dot(-shadowRay,inter.normal)));
 					//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
 					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
 					if (specular < 0) specular =0;
-					//brightness += pow(specular,250);
+					brightness += pow(specular,270);
 		
 				}
-				brightness += 0; //universal suppliment
+				brightness += 0.2; //universal suppliment
 				if (brightness > 1) brightness =1;
 				Colour colour = triangles[inter.triangleIndex].colour;
 
-				if (colour.red == NULL ) {
+				/* if (colour.red == NULL ) {
 					colour.red = 255;
 					colour.blue = 0;
 					colour.green = 0;
-				}  
+				}   */
 
 				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 				window.setPixelColour(x,y,colour_32);
@@ -745,6 +743,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,glm::vec3 &lightSource, 
 	const float xStep = 0.05; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
+	const float lightIncrement = 0.25;
 	const float theta = M_PI/13 ; // 9 degree increments
 	
 	if (event.type == SDL_KEYDOWN) {
@@ -841,7 +840,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,glm::vec3 &lightSource, 
 			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
 			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 
-		} else if (event.key.keysym.sym == SDLK_o) {
+		} else if (event.key.keysym.sym == SDLK_r) {
 
 			glm::vec3 lookAtPoint = glm::vec3(0,0,0);
 			lookAt(cameraOrientation,cameraPos,lookAtPoint);
@@ -877,22 +876,22 @@ void handleEvent(SDL_Event event, DrawingWindow &window,glm::vec3 &lightSource, 
 			std::cout << "render type changed to draw ray trace scene\n";
 
 		}  else if (event.key.keysym.sym == SDLK_j) {
-			lightSource[0] +=1;
+			lightSource[0] +=lightIncrement;
 			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
 		}  else if (event.key.keysym.sym == SDLK_l) {
-			lightSource[0] -=1;
+			lightSource[0] -=lightIncrement;
 			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
 		}  else if (event.key.keysym.sym == SDLK_i) {
-			lightSource[2] -=1;
+			lightSource[2] -=lightIncrement;
 			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
 		}  else if (event.key.keysym.sym == SDLK_k) {
-			lightSource[2] +=1;
+			lightSource[2] +=lightIncrement;
 			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
 		}  else if (event.key.keysym.sym == SDLK_0) {
-			lightSource[1] +=1;
+			lightSource[1] +=lightIncrement;
 			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
 		}  else if (event.key.keysym.sym == SDLK_o) {
-			lightSource[1] -=1;
+			lightSource[1] -=lightIncrement;
 			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
 	
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
@@ -908,14 +907,14 @@ int main(int argc, char *argv[]) {
 	SDL_Event event;
 
 	const float objScaler = 0.35;
-	//std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler); 
-
+	
+	/* std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler); 
 	glm::vec3 cameraPos = glm::vec3(0,0.5,2); //position for sphere
-	glm::vec3 lightSource = glm::vec3(-2,0.5,0); //sphere light location
+	glm::vec3 lightSource = glm::vec3(0,0.5,1); //sphere light location */
 
-	//glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
-	//glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
+	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
+	glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
+	glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
 	
 
 	glm::mat3 camOrientation = glm::mat3(
