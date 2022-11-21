@@ -84,8 +84,8 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 	//std::cout << "drawLineDepth\n";
 
 	if (from.x == to.x && from.y == to.y && from.x>=0 && from.x < window.width && from.y >=0 && from.y < window.height) {
-		if (from.depth > depthBuffer[from.x][from.y]){
-			depthBuffer[from.x][from.y] = (1/ (1+exp(-from.depth)));
+		if ((1 / (1+from.depth)) > depthBuffer[from.x][from.y]){
+			depthBuffer[from.x][from.y] = 1/ (1+from.depth);
 			//std::cout << "colour.istexture: " << colour.isTexture << "\n";
 			if (colour.isTexture) {
 				window.setPixelColour(from.x,from.y, colour.rowTexture[0]);
@@ -103,9 +103,9 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 			int x = round(from.x + xStepSize*i);
 			int y = round(from.y + yStepSize*i);
 			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
-				float depth = getPointDepth(from,to,x,y) ; //sigmoid function outputs 0-1 range
-				if (depth > depthBuffer[x][y]){
-					depthBuffer[x][y] = (depth);
+				float depth = getPointDepth(from,to,x,y) ; 
+				if ( 1/ (1+ depth) > depthBuffer[x][y]){
+					depthBuffer[x][y] = (1/(1+ depth));
 					if (colour.isTexture) {
 						window.setPixelColour(x,y, colour.rowTexture[i]);
 					} else window.setPixelColour(x,y, colour_32);
@@ -289,8 +289,8 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 		bigV = triangle.v2();
 		smallV = triangle.v0();
 	}
-	float z0 = smallV.z; //Z depth furthest vertex from camera
-	float z1 = bigV.z; //Z depth closest vertex from camera
+	float z0 = smallV.depth; //Z depth furthest vertex from camera
+	float z1 = bigV.depth; //Z depth closest vertex from camera
 	float c0 = smallV.texturePoint.y; //texture y coord furthest from camera
 	float c1 = bigV.texturePoint.y; //texture y coord closest to camera
 	float q = (point.y - smallV.y) / (bigV.y -smallV.y); // ratio along triangle from smallest y
@@ -302,10 +302,25 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 
 	float c; //row of the texture image we should use
 
-	c = ((c0*(1-q))/z0 + (c1*q)/z1 ) / ((1-q)/z0 + q/z1);
+	c = ( (c0*( 1-q) )/z0 + (c1*q)/z1 ) / ( (1-q)/z0 + q/z1 );
+
+	if (c<0 || c > triangle.textureMap.height) {
+		std::cout << "vertex: " << vertex << "\n";
+		std::cout << "smallV.z: " << smallV.z << " bigV.z: " << bigV.z << "\n";
+		std::cout << "smallV.texturePoint.y: " << smallV.texturePoint.y << "\n";
+		std::cout << "bigV.texturePoint.y: " << bigV.texturePoint.y << "\n";
+		std::cout << "q: " << q << "\n"; 
+
+		int x; 
+		std::cin >> x;
+	}
+
 
 	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*q);
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*q);
+
+	std::cout << "yTexture: " << yTexture << "\n";
+	std::cout << "c: " << c << "\n"; 
 	//std::cout << "xTexture: " << xTexture << " yTexture: " << yTexture << "\n";
 
 	
@@ -329,7 +344,7 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 		std::cout << "this is rly messed upggggg 2\n";
 	}
 
-	textureP = TexturePoint(xTexture,yTexture);
+	textureP = TexturePoint(xTexture,round(c));
 	return textureP;
 }
 
@@ -611,13 +626,14 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	//std::cout << "we made it canvas intersection\n";
 	int x = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).x / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.width/2));
 	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
-	//std::cout << "camera pos " << (cameraPosition*camOrientation).x << "," << (cameraPosition*camOrientation).y << "," << (cameraPosition*camOrientation).z << "\n";
-	//std::cout << "vertexPosition " << vertexPosition.z << "\n";
-	float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z;
-	//std::cout << "depth " << updatedDepth << "we made it\n";
-	updatedDepth = 1 / (1 + exp(updatedDepth)); //sigmoid to allow depth printing function
+
+	//float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z; //smaller distance to vertex results in large updated depth
+	float updatedDepth = pow(((vertexPosition  - cameraPosition)*camOrientation).z,2); //smaller distance to vertex results in large updated depth
+
+	//updatedDepth = 1 / (1 + exp(updatedDepth)); //closer objects results in a smaller depth
 	CanvasPoint point = CanvasPoint(x,y,updatedDepth);
 	return point;
+
 }
 
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles) {
@@ -802,7 +818,6 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 			if (triangle.isTexture) {
 				//std::cout << "texture found in drawRasterisedScene\n";
 				v[i].texturePoint = triangle.texturePoints[i] ; //transfer texture point from ModelTriangle array to CanvasPoint 
-				v[i].z = triangle.vertices[i][2]; //transfer z value used for corrected perspective calculation
 			}	
 			//std::cout << "New z: " << v[i].depth << "\n";
 		}
