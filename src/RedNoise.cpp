@@ -319,8 +319,8 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*q);
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*q);
 
-	std::cout << "yTexture: " << yTexture << "\n";
-	std::cout << "c: " << c << "\n"; 
+	//std::cout << "yTexture: " << yTexture << "\n";
+	//std::cout << "c: " << c << "\n"; 
 	//std::cout << "xTexture: " << xTexture << " yTexture: " << yTexture << "\n";
 
 	
@@ -1009,9 +1009,9 @@ int main(int argc, char *argv[]) {
 	glm::vec3 cameraPos = glm::vec3(0,0.5,2); //position for sphere
 	glm::vec3 lightSource = glm::vec3(0,0.5,2); //sphere light location */
 
-	std::vector<ModelTriangle> triangles = loadObj("cornell-box-texture.obj","cornell-box-texture.mtl",objScaler);
+	//std::vector<ModelTriangle> triangles = loadObj("cornell-box-texture.obj","cornell-box-texture.mtl",objScaler);
 	//std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	//std::vector<ModelTriangle> triangles = loadObj("triangle-texture.obj","triangle-texture.mtl",objScaler);
+	std::vector<ModelTriangle> triangles = loadObj("triangle-texture.obj","triangle-texture.mtl",objScaler);
 
 	glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
 	glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
