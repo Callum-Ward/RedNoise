@@ -85,6 +85,7 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 	if (from.x == to.x && from.y == to.y && from.x>=0 && from.x < window.width && from.y >=0 && from.y < window.height) {
 		if (from.depth > depthBuffer[from.x][from.y]){
 			depthBuffer[from.x][from.y] = (1/ (1+exp(-from.depth)));
+			std::cout << "colour.istexture: " << colour.isTexture << "\n";
 			if (colour.isTexture) {
 				window.setPixelColour(from.x,from.y, colour.rowTexture[0]);
 			} else window.setPixelColour(from.x,from.y, colour_32);
@@ -101,20 +102,45 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 			int x = round(from.x + xStepSize*i);
 			int y = round(from.y + yStepSize*i);
 			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
-				//std::cout << "----------\n";
-				//std::cout << "x " << x << "  y " << y << "\n";
 				float depth = getPointDepth(from,to,x,y) ; //sigmoid function outputs 0-1 range
-				//std::cout << "   |   parents depth " << from.depth << " & " << to.depth << " child depth " << depth << "   |";
-				//if (1/ (1+exp(depth)) > depthBuffer[x][y]){
 				if (depth > depthBuffer[x][y]){
-
-					//std::cout << "coord in range\n";
-					//std::cout << "depth buffer before " << depthBuffer[x][y] << "\n";
 					depthBuffer[x][y] = (depth);
-					//std::cout << "depth buffer after " << depthBuffer[x][y] << "\n";
 					if (colour.isTexture) {
-						window.setPixelColour(from.x,from.y, colour.rowTexture[i]);
-					} else window.setPixelColour(from.x,from.y, colour_32);
+						std::cout << "texture found in drawLineDepth\n";
+						window.setPixelColour(x,y, colour.rowTexture[i]);
+					} else window.setPixelColour(x,y, colour_32);
+
+				} 
+			}
+		}
+	}
+}
+
+void drawLineDepthOriginal(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour,std::vector<std::vector<float>> &depthBuffer) {
+	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+	//std::cout << "we made it kind of\n";
+
+	if (from.x == to.x && from.y == to.y && from.x>=0 && from.x < window.width && from.y >=0 && from.y < window.height) {
+		if (from.depth > depthBuffer[from.x][from.y]){
+			depthBuffer[from.x][from.y] = (1/ (1+exp(-from.depth)));
+			window.setPixelColour(from.x,from.y, colour_32);
+		}
+	} else {
+		float xDiff = to.x-from.x;
+		float yDiff = to.y-from.y;
+		float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
+		float xStepSize = xDiff / numberOfSteps;
+		float yStepSize = yDiff / numberOfSteps;
+
+		for (size_t i = 0; i <= numberOfSteps; i++) {
+
+			int x = round(from.x + xStepSize*i);
+			int y = round(from.y + yStepSize*i);
+			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
+				float depth = getPointDepth(from,to,x,y) ; //sigmoid function outputs 0-1 range
+				if (depth > depthBuffer[x][y]){
+					depthBuffer[x][y] = (depth);
+					window.setPixelColour(x,y, colour_32);
 				} else {
 					//std::cout << "current depth " << depth << "\n"; 
 					//std::cout << "depth " << depthBuffer[x][y] << "\n"; 
@@ -146,12 +172,12 @@ void drawLine(DrawingWindow &window, CanvasPoint &from, CanvasPoint &to, Colour 
 }
 
 void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
-	std::cout << "drawStroked\n";
+	//std::cout << "drawStroked\n";
 	//window.clearPixels();
 	drawLine(window,triangle.v0(),triangle.v1(),colour);
 	drawLine(window,triangle.v1(),triangle.v2(),colour);
 	drawLine(window,triangle.v2(),triangle.v0(),colour);
-	std::cout << "drawStroked2\n";
+	//std::cout << "drawStroked2\n";
 
 }
 
@@ -413,6 +439,8 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour &
 				}
 				
 				drawLineDepth(window,lineStart,lineEnd,colour,depthBuffer);
+				//drawLineDepthOriginal(window,lineStart,lineEnd,colour,depthBuffer);
+
 				if (yStepSize[i] == 0) break;
 				if (round(curX[i]) == x[2] && round(curY[i]) == y[2]) break;
 				curX[i]+=xStepSize[i];
@@ -693,10 +721,8 @@ void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triang
 		CanvasPoint v[3];
 		for (size_t i = 0; i <3; i++){
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
-			//std::cout << "getinteresection: " << i << "\n";
 		}
 		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
-		std::cout << "drawStroken done\n";
 
 	}
 }
@@ -716,6 +742,7 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 		for (size_t i = 0; i <3; i++){
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
 			if (triangle.isTexture) {
+				std::cout << "texture found in drawRasterisedScene\n";
 				v[i].texturePoint = triangle.texturePoints[i]; //transfer texture point from ModelTriangle array to CanvasPoint 
 				v[i].z = triangle.vertices[i][2]; //transfer z value used for corrected perspective calculation
 			}	
@@ -727,6 +754,7 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 		if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
 		CanvasTriangle tri = CanvasTriangle(v[0],v[1],v[2]);
 		if (triangle.isTexture) {
+			std::cout << "texture found in drawRasterisedScene1\n";
 			tri.textureMap = triangle.textureMap; //texture map transfered from model triangle to canvas triangle
 			tri.isTexture = 1;
 		}
@@ -928,9 +956,7 @@ int main(int argc, char *argv[]) {
 		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		if (renderTypeIndex == 0) {
-			std::cout << "drawWireframeScene1\n";
 			drawWireframeScene(window,triangles,cameraPos,camOrientation);
-			std::cout << "drawWireframeScene2\n";
 		} else if(renderTypeIndex == 1) {
 			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
 		} else if (renderTypeIndex == 2) {
