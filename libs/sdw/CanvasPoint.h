@@ -6,9 +6,10 @@
 struct CanvasPoint {
 	float x{};
 	float y{};
+	float z{};
 	float depth{};
 	float brightness{};
-	TexturePoint texturePoint{};
+	TexturePoint texturePoint;
 
 	CanvasPoint();
 	CanvasPoint(float xPos, float yPos);

@@ -6,6 +6,7 @@ CanvasPoint::CanvasPoint() :
 CanvasPoint::CanvasPoint(float xPos, float yPos) :
 		x(xPos),
 		y(yPos),
+		z(0),
 		depth(0.0),
 		brightness(1.0),
 		texturePoint(-1, -1) {}
@@ -13,6 +14,7 @@ CanvasPoint::CanvasPoint(float xPos, float yPos) :
 CanvasPoint::CanvasPoint(float xPos, float yPos, float pointDepth) :
 		x(xPos),
 		y(yPos),
+		z(0),
 		depth(pointDepth),
 		brightness(1.0),
 		texturePoint(-1, -1) {}
@@ -20,6 +22,7 @@ CanvasPoint::CanvasPoint(float xPos, float yPos, float pointDepth) :
 CanvasPoint::CanvasPoint(float xPos, float yPos, float pointDepth, float pointBrightness) :
 		x(xPos),
 		y(yPos),
+		z(0),
 		depth(pointDepth),
 		brightness(pointBrightness),
 		texturePoint(-1, -1) {}

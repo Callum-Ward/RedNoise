@@ -2,6 +2,8 @@
 
 CanvasTriangle::CanvasTriangle() = default;
 CanvasTriangle::CanvasTriangle(const CanvasPoint &v0, const CanvasPoint &v1, const CanvasPoint &v2) :
+    isTexture(0),
+    textureMap(nullptr),
     vertices({{v0, v1, v2}}) {}
 
 CanvasPoint &CanvasTriangle::v0() {

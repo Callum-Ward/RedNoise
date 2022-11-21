@@ -66,6 +66,7 @@ std::vector<std::vector<int>> getLineCoords(CanvasPoint from, CanvasPoint to){
 } 
 
 float getPointDepth(CanvasPoint v0, CanvasPoint v1, int curX,int curY) {
+	//get a depth value for a point based on its position along the line connecting traingle vertices
 
 	float ratio = ((curY-v0.y)+ abs(curX-v0.x)) /((v1.y- v0.y) + abs(v1.x - v0.x)); //always pos
 	//std::cout << "ratio " << ratio << "\n";
@@ -84,7 +85,9 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 	if (from.x == to.x && from.y == to.y && from.x>=0 && from.x < window.width && from.y >=0 && from.y < window.height) {
 		if (from.depth > depthBuffer[from.x][from.y]){
 			depthBuffer[from.x][from.y] = (1/ (1+exp(-from.depth)));
-			window.setPixelColour(from.x,from.y, colour_32);
+			if (colour.isTexture) {
+				window.setPixelColour(from.x,from.y, colour.rowTexture[0]);
+			} else window.setPixelColour(from.x,from.y, colour_32);
 		}
 	} else {
 		float xDiff = to.x-from.x;
@@ -109,7 +112,9 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 					//std::cout << "depth buffer before " << depthBuffer[x][y] << "\n";
 					depthBuffer[x][y] = (depth);
 					//std::cout << "depth buffer after " << depthBuffer[x][y] << "\n";
-					window.setPixelColour(x,y, colour_32);
+					if (colour.isTexture) {
+						window.setPixelColour(from.x,from.y, colour.rowTexture[i]);
+					} else window.setPixelColour(from.x,from.y, colour_32);
 				} else {
 					//std::cout << "current depth " << depth << "\n"; 
 					//std::cout << "depth " << depthBuffer[x][y] << "\n"; 
@@ -121,7 +126,7 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 	}
 }
 
-void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour) {
+void drawLine(DrawingWindow &window, CanvasPoint &from, CanvasPoint &to, Colour &colour) {
 	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
 	if (from.x == to.x && from.y == to.y) {
 		window.setPixelColour(from.x,from.y, colour_32);
@@ -140,35 +145,14 @@ void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour co
 	}
 }
 
-void drawLineTextured(DrawingWindow &window, CanvasPoint from, CanvasPoint to, std::vector<uint32_t> rowTexture) {
-	float xDiff = to.x-from.x;
-	float yDiff = to.y-from.y;
-	if (xDiff == 0 && yDiff == 0) {
-		window.setPixelColour(to.x,to.y, rowTexture[0]);
-	} else {
-		float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
-		float xStepSize = xDiff / numberOfSteps;
-		float yStepSize = yDiff / numberOfSteps;
-		float x,y;
-
-
-		for (size_t i = 0; i <= numberOfSteps; i++)
-		{
-			x = from.x + xStepSize*i;
-			y = from.y + yStepSize*i;
-
-			window.setPixelColour(round(x),round(y), rowTexture[i]);
-		}
-	}
-
-}
-
 void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
-
+	std::cout << "drawStroked\n";
 	//window.clearPixels();
 	drawLine(window,triangle.v0(),triangle.v1(),colour);
 	drawLine(window,triangle.v1(),triangle.v2(),colour);
 	drawLine(window,triangle.v2(),triangle.v0(),colour);
+	std::cout << "drawStroked2\n";
+
 }
 
 std::vector<uint32_t> getRowTexture(TextureMap texture,TexturePoint from, TexturePoint to){
@@ -202,11 +186,11 @@ uint32_t getPixelAvg(uint32_t pixel, uint32_t pixel1) {
 	return colour;
 }
 
-std::vector<uint32_t> getScaledRowTexture(CanvasTriangle triangle,CanvasPoint start,CanvasPoint end,TextureMap texture) {
-	//get texture row vector
+std::vector<uint32_t> getScaledRowTexture(CanvasTriangle &triangle,CanvasPoint start,CanvasPoint end) {
+	//get texture row vector based on start and end texture points
 	//determine diffrence in length x and y
 	//scale vector by interpolation
-	std::vector<uint32_t> rowTexture = getRowTexture(texture,start.texturePoint,end.texturePoint);
+	std::vector<uint32_t> rowTexture = getRowTexture(triangle.textureMap,start.texturePoint,end.texturePoint);
 	std::vector<std::vector<int>> imgLineCoords = getLineCoords(start,end);
 
 	if (rowTexture.size() > imgLineCoords.size() ) { //scale down by removing pixels periodically
@@ -234,6 +218,7 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle triangle,CanvasPoint st
 }
 
 TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int vertex) {
+	//interpolate texture point along edge between vertices
 	TexturePoint textureP;
 	CanvasPoint bigV,smallV; //bigV refers to the vertex with larger y, ratio based off y 
 
@@ -247,11 +232,44 @@ TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int verte
 		bigV = triangle.v2();
 		smallV = triangle.v0();
 	}
-	int yLength = bigV.y -smallV.y;
 
+	int yLength = bigV.y -smallV.y;
 	float ratio = (point.y - smallV.y) / yLength;
+
 	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*ratio);
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*ratio);
+
+	textureP = TexturePoint(xTexture,yTexture);
+	return textureP;
+}
+
+TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,int vertex) {
+	//interpolate texture point along edge between vertices
+	TexturePoint textureP;
+	CanvasPoint bigV,smallV; //bigV refers to the vertex with larger y, ratio based off y 
+
+	if (vertex == 0) { //point between v0, v1
+		bigV = triangle.v1();
+		smallV = triangle.v0();
+	} else if (vertex == 1) {//point between v1, v2
+		bigV = triangle.v2();
+		smallV = triangle.v1();
+	} else {//point between v0, v2
+		bigV = triangle.v2();
+		smallV = triangle.v0();
+	}
+	float z0 = smallV.z; //Z depth furthest vertex from camera
+	float z1 = bigV.z; //Z depth closest vertex from camera
+	float c0 = smallV.texturePoint.y; //texture y coord furthest from camera
+	float c1 = bigV.texturePoint.y; //texture y coord closest to camera
+	float q = (point.y - smallV.y) / bigV.y -smallV.y; // ratio along triangle from smallest y
+
+	float c; //row of the texture image we should use
+
+	c = ((c0*(1-q))/z0 + (c1*q)/z1 ) / ((1-q)/z0 + q/z1);
+
+	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*q);
+	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*q);
 
 	textureP = TexturePoint(xTexture,yTexture);
 	return textureP;
@@ -295,7 +313,6 @@ void drawTexturedTriangle(DrawingWindow &window, CanvasTriangle triangle, Textur
 	for (size_t row = y[0]; row < y[2]; row++){ //loop through y values from v0 to v2
 
 		if (row == y[1]){ //if v0-v1 is filled with lines switch step size to v1-v2
-
 			fillStage++;
 			xStepSize[0] = xStepSize[2];
 			yStepSize[0] = yStepSize[2];
@@ -313,30 +330,25 @@ void drawTexturedTriangle(DrawingWindow &window, CanvasTriangle triangle, Textur
 		}
 
 		lineStart = CanvasPoint(round(curX[0]),row); //create canvas point for drawing line then add the approparie texture point from ratio along line
-		lineStart.texturePoint = TexturePoint(getTexturePoint(triangle,lineStart,fillStage)); 
+		lineStart.texturePoint = getTexturePoint(triangle,lineStart,fillStage); 
 
 		lineEnd = CanvasPoint(round(curX[1]),row);
-		lineEnd.texturePoint = TexturePoint(getTexturePoint(triangle,lineEnd,2));	
+		lineEnd.texturePoint = getTexturePoint(triangle,lineEnd,2);	
 	
-		std::vector<uint32_t> rowTexture = getScaledRowTexture(triangle,lineStart,lineEnd,texture); //get the exact number of pixels required to draw in image by scaling fetched texture
-		drawLineTextured(window, lineStart,lineEnd,rowTexture); //draw horizontal line before y incrmement
+		//std::vector<uint32_t> rowTexture = getScaledRowTexture(triangle,lineStart,lineEnd,texture); //get the exact number of pixels required to draw in image by scaling fetched texture
+		//drawLineTextured(window, lineStart,lineEnd,rowTexture); //draw horizontal line before y incrmement
 
 		curX[0] += xStepSize[0];
 		curY[0] += yStepSize[0];
 		curX[1]  += xStepSize[1];
 		curY[1] += yStepSize[1];
-
-
-
 	}
-
-
 	//drawLine(window, CanvasPoint(x[2],y[2]),CanvasPoint(x[2],y[2]),colour);
 	drawStrokedTriangle(window,triangle,Colour(255,255,255));
 	//window.setPixelColour(round(x),round(y), colour_32);
 }
 
-void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour,std::vector<std::vector<float>> &depthBuffer) {
+void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour &colour,std::vector<std::vector<float>> &depthBuffer) {
 	if (triangle.v0().y > triangle.v1().y) {
 		std::swap(triangle.v0().y,triangle.v1().y); //sorting vertices in order of y coord smallest to largest
 		std::swap(triangle.v0().x,triangle.v1().x); 
@@ -354,24 +366,20 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 		std::swap(triangle.v1().x,triangle.v2().x);
 		std::swap(triangle.v1().depth,triangle.v2().depth);
 	}
-	//std::cout << "we made it draw filled tri\n";
-	
 
-	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
+	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x}; //moving all x and y to arrays to make future statements shorter
 	float y[3] = {triangle.v0().y,triangle.v1().y,triangle.v2().y};
 	float xStepSize[3],yStepSize[3];
 	CanvasPoint lineStart;
 	CanvasPoint lineEnd;	
-	//std::cout << "target: " << x[2] << "," << y[2] <<"\n"; 
 	for (int c=0;c<2;++c){
 		xStepSize[c] = (x[c+1] - x[0])/ fmax(abs(x[c+1] - x[0]),abs(y[c+1] - y[0])); //step[0] top
 		yStepSize[c] = (y[c+1] - y[0]) / fmax(abs(y[c+1] - y[0]),abs(x[c+1] - x[0]));//step[1] full length line
 	}
-	xStepSize[2] = (x[2]-x[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1])); //step[3] second stage line
+	xStepSize[2] = (x[2]-x[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1])); //step[2] second stage line
 	yStepSize[2] = (y[2]-y[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1]));
 	float curX[2] = {x[0],x[0]};
 	float curY[2] = {y[0],y[0]};
-	//std::cout << "y[0] = " << y[0] << "  y[1] = " << y[1] << "  y[2] = " << y[2] << "\n"; 
 
 	for (size_t row = y[0]; row <= y[2]; row++){
 		if (row == y[1]){ //if v0.y == v1.y == v2.y then only v1 to v2 is drawn
@@ -380,32 +388,31 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 			curX[0] = x[1];
 			curY[0] = y[1];		
 		}
-		//std::cout << "row " << row << " of " << y[2] << "\n";
 		for (size_t i = 0; i < 2; i++){
 
 			while(round(curY[i]) == row){	
 
 				if (row <= y[1]) {
-					//std::cout << "made it to lineStart\n";
 					lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v0(),triangle.v1(), round(curX[0]),row)); 
-					//std::cout << "lineStart depths v0 " << triangle.v0().depth << "  v1 " << triangle.v1().depth << "  new depth  " << lineStart.depth << "\n";
+					if (triangle.isTexture) lineStart.texturePoint = getCorrectedTexturePoint(triangle, lineStart,0);
 				} else {
 					lineStart = CanvasPoint(round(curX[0]),row, getPointDepth(triangle.v1(),triangle.v2(), round(curX[0]),row)); 
-				}
+					if (triangle.isTexture) lineStart.texturePoint = getCorrectedTexturePoint(triangle, lineStart,1);
 
-				//std::cout << "made it to lineEnd\n";
+				}
 
 				lineEnd = CanvasPoint(round(curX[1]),row, getPointDepth(triangle.v0(),triangle.v2(), round(curX[1]),row));
-				//std::cout << "draw line: " << lineStart.x << "," << lineStart.y << " to " << lineEnd.x << "," << lineEnd.y << "\n"; 
-				//std::cout << "we made it get depth point\n";
+				if (triangle.isTexture) lineStart.texturePoint = getCorrectedTexturePoint(triangle, lineStart,3);
 
-				if (lineStart.depth < 0 && lineEnd.depth < 0) {
-					//std::cout << "continue\n";
-					continue;
+
+				if (lineStart.depth < 0 && lineEnd.depth < 0) continue;
+				if (triangle.isTexture) {
+					std::vector<uint32_t> rowTexture = getScaledRowTexture(triangle,lineStart,lineEnd); //get the exact number of pixels required to draw in image by scaling fetched texture
+					colour.rowTexture = rowTexture;
+					colour.isTexture = 1;
 				}
-				//std::cout << "made it to draw line depth\n";
-				drawLineDepth(window, lineStart,lineEnd,colour,depthBuffer);
-				//drawLine(window,lineStart,lineEnd,colour);
+				
+				drawLineDepth(window,lineStart,lineEnd,colour,depthBuffer);
 				if (yStepSize[i] == 0) break;
 				if (round(curX[i]) == x[2] && round(curY[i]) == y[2]) break;
 				curX[i]+=xStepSize[i];
@@ -421,6 +428,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	std::string line;
 	std::vector<ModelTriangle> triangles;
 	std::vector<glm::vec3> vertices;
+	std::vector<TexturePoint> txtrPoints;
 	std::unordered_map<std::string, Colour> objColours;
 	std::string colourName;
 	std::vector<std::string> sections;
@@ -431,7 +439,9 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 			if (sections[0] == "Kd") {
-				objColours.insert({colourName, Colour(colourName,std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]))});
+				objColours.insert({colourName, Colour(colourName,std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]))}); 
+			} else if (sections[0] == "map_Kd") {
+				objColours.insert({colourName, Colour(sections[1],0.0f,0.0f,0.0f)}); 
 			} else if (sections[0] == "newmtl") {
 				colourName = sections[1];
 			} 
@@ -450,11 +460,28 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
 				//std::cout << -1*newV.x << ","<< newV.y << "," << newV.z<< "\n";
 				vertices.push_back(newV);
+			} else if (sections[0] == "vt") {
+				TexturePoint tp = TexturePoint(std::stof(sections[1]),std::stof(sections[2]));
+				txtrPoints.push_back(tp);
 			} else if (sections[0] == "f") {
-				int v0Pos = std::stoi(split(sections[1], '/')[0]) -1;
-				int v1Pos = std::stoi(split(sections[2], '/')[0]) -1;
-				int v2Pos = std::stoi(split(sections[3], '/')[0]) -1;
-				ModelTriangle tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol);
+				std::vector<std::string> sec1 = split(sections[1], '/');
+				std::vector<std::string> sec2 = split(sections[2], '/');
+				std::vector<std::string> sec3 = split(sections[3], '/');
+				int v0Pos = std::stoi(sec1[0]) -1;
+				int v1Pos = std::stoi(sec2[0]) -1;
+				int v2Pos = std::stoi(sec3[0]) -1;
+
+				ModelTriangle tri;
+				if (sec1[1] != "") { //if texture points exist
+					tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol.name);//curCol.name is texture filename
+					TexturePoint tp1 = txtrPoints[std::stoi(sec1[1])-1];
+					TexturePoint tp2 = txtrPoints[std::stoi(sec2[1])-1];
+					TexturePoint tp3 = txtrPoints[std::stoi(sec3[1])-1];
+					std::array<TexturePoint, 3> triTexturePoints = {tp1,tp2,tp3};
+					tri.texturePoints = triTexturePoints;
+				} else tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol); 
+				
+
 				glm::vec3 normal = glm::cross(tri.vertices[1] - tri.vertices[0], tri.vertices[2]-tri.vertices[0]);
 				tri.normal = normal;
 				triangles.push_back(tri);
@@ -484,7 +511,6 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 				vNormal += normal;
 			}
 			vNormal /= nbrNormals.size();
-			std::cout << nbrNormals.size() << "\n";
 			normals[index] = vNormal;
 			//std::cout << tri.normals[index][0] << "," << tri.normals[index][1] << "," <<tri.normals[index][2] << "\n";
 			index++;
@@ -497,7 +523,6 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 
 CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPosition,glm::mat3 camOrientation, glm::vec3 vertexPosition,float focalLength, float planeScaler) {
 	//std::cout << "we made it canvas intersection\n";
-
 	int x = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).x / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.width/2));
 	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
 	//std::cout << "camera pos " << (cameraPosition*camOrientation).x << "," << (cameraPosition*camOrientation).y << "," << (cameraPosition*camOrientation).z << "\n";
@@ -505,7 +530,8 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z;
 	//std::cout << "depth " << updatedDepth << "we made it\n";
 	updatedDepth = 1 / (1 + exp(updatedDepth)); //sigmoid to allow depth printing function
-	return CanvasPoint(x,y,updatedDepth);
+	CanvasPoint point = CanvasPoint(x,y,updatedDepth);
+	return point;
 }
 
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles) {
@@ -539,7 +565,6 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				/* std::cout << "new normal: " << theRay.normal[0] <<  ", " << theRay.normal[1] <<  ", " << theRay.normal[2] << "\n";
 				std::cout << "\n"; */
 
-				
 			}
 		}
 	}
@@ -617,8 +642,6 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, g
 			//std::cout << "\n";
 
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
-				
-				
 				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
 				float brightness=0;
@@ -629,29 +652,29 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, g
 
 				if (shadowInter.distanceFromCamera > 1) {
 					//------proximity---------
-					brightness += 1 / (1.5* pow(glm::length(shadowRay),2)); 
+					brightness += 1 /2* ( pow(glm::length(shadowRay),2)); 
 					//----angle of incidence--
 					float incidentDot= glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay));
 					if (incidentDot < 0) incidentDot = 0;
-					brightness *= incidentDot;
+					brightness += incidentDot/2;
 					//brightness += glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
 					//------specular----------
 					glm::vec3 reflection = (-shadowRay) - (2.0f * inter.normal * (glm::dot(-shadowRay,inter.normal)));
 					//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
 					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
 					if (specular < 0) specular =0;
-					brightness += pow(specular,270);
+					brightness += pow(specular,240);
 		
 				}
-				brightness += 0.2; //universal suppliment
+				brightness += 0.1; //universal suppliment
 				if (brightness > 1) brightness =1;
-				Colour colour = triangles[inter.triangleIndex].colour;
+				Colour colour = inter.intersectedTriangle.colour;
 
-				/* if (colour.red == NULL ) {
+				if (colour.red == NULL ) {
 					colour.red = 255;
 					colour.blue = 0;
 					colour.green = 0;
-				}   */
+				}   
 
 				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 				window.setPixelColour(x,y,colour_32);
@@ -662,41 +685,6 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, g
 
 }
 
-void drawRayTraceNormals(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 lightSource,glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
-	const float focalL = 2;
-	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
-	//const float planeScaler = 200 ;
-
-	for (float x = 0; x < window.width; x+=10) {
-		for (float y = 0; y < window.height; y+=10){
-
-			float newX = (x-(window.width/2)) / (focalL*planeScaler); 
-			float newY = (y-window.height/2) / (focalL*planeScaler);
-	
-			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
-			ray = ray * glm::inverse(cameraOrientation);
-			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles);
-
-			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
-				
-				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
-				
-
-				if (shadowInter.distanceFromCamera > 1) {
-					Colour colour = Colour(0,0,255);
-					uint32_t colour_32 = (255 << 24) + (int(round(colour.red)) << 16) + (int(round(colour.green)) << 8) + int(round(colour.blue));
-					
-				}
-		
-
-			}
-		}
-	}
-
-}
-
-
 void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
@@ -705,8 +693,11 @@ void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triang
 		CanvasPoint v[3];
 		for (size_t i = 0; i <3; i++){
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
+			//std::cout << "getinteresection: " << i << "\n";
 		}
 		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+		std::cout << "drawStroken done\n";
+
 	}
 }
 
@@ -724,17 +715,22 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 		CanvasPoint v[3];
 		for (size_t i = 0; i <3; i++){
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
+			if (triangle.isTexture) {
+				v[i].texturePoint = triangle.texturePoints[i]; //transfer texture point from ModelTriangle array to CanvasPoint 
+				v[i].z = triangle.vertices[i][2]; //transfer z value used for corrected perspective calculation
+			}	
 			//std::cout << "New z: " << v[i].depth << "\n";
 		}
 		if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue; //early validation to save time processing objects outside the image plane
 		if (v[0].y < 0 && v[1].y < 0 && v[2].y < 0) continue;
 		if (v[0].x > window.width && v[1].x > window.width && v[2].x < window.width) continue;
 		if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
-
-		drawFilledTriangle(window,CanvasTriangle(v[0],v[1],v[2]),triangle.colour,depthBuffer);
-		//drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
-
-
+		CanvasTriangle tri = CanvasTriangle(v[0],v[1],v[2]);
+		if (triangle.isTexture) {
+			tri.textureMap = triangle.textureMap; //texture map transfered from model triangle to canvas triangle
+			tri.isTexture = 1;
+		}
+		drawFilledTriangle(window,tri,triangle.colour,depthBuffer);
 	}
 	//drawDepth(window,depthBuffer);
 }
@@ -910,7 +906,7 @@ int main(int argc, char *argv[]) {
 	
 	/* std::vector<ModelTriangle> triangles = loadObj("sphere.obj","",objScaler); 
 	glm::vec3 cameraPos = glm::vec3(0,0.5,2); //position for sphere
-	glm::vec3 lightSource = glm::vec3(0,0.5,1); //sphere light location */
+	glm::vec3 lightSource = glm::vec3(0,0.5,2); //sphere light location */
 
 	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
 	glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
@@ -932,7 +928,9 @@ int main(int argc, char *argv[]) {
 		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		if (renderTypeIndex == 0) {
+			std::cout << "drawWireframeScene1\n";
 			drawWireframeScene(window,triangles,cameraPos,camOrientation);
+			std::cout << "drawWireframeScene2\n";
 		} else if(renderTypeIndex == 1) {
 			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
 		} else if (renderTypeIndex == 2) {

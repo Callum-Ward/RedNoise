@@ -7,6 +7,8 @@ struct Colour {
 	int red{};
 	int green{};
 	int blue{};
+	int isTexture;
+	std::vector<uint32_t> rowTexture;
 	Colour();
 	Colour(int r, int g, int b);
 	Colour(std::string n,float r, float g, float b);
