@@ -267,10 +267,90 @@ TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int verte
 	int yLength = bigV.y -smallV.y;
 	float ratio = (point.y - smallV.y) / yLength;
 
+	if (smallV.y == bigV.y) { //edge case when both y are the same
+		if(vertex == 0 || vertex == 1) ratio = 0; //favour smaller y vertices when choosing starting point of line
+		if (vertex ==2) ratio =1; //favour v2 when choosing a line endpoint
+	} 
+
 	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*ratio);
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*ratio);
 
 	textureP = TexturePoint(xTexture,yTexture);
+	return textureP;
+}
+
+TexturePoint getCorrectedTexturePointv2(CanvasTriangle triangle,CanvasPoint point,int vertex) {
+	//interpolate texture point along edge between vertices
+	TexturePoint textureP;
+	CanvasPoint bigV,smallV; //bigV refers to the vertex with larger y, ratio based off y 
+
+	if (vertex == 0) { //point between v0, v1
+		bigV = triangle.v1();
+		smallV = triangle.v0();
+	} else if (vertex == 1) {//point between v1, v2
+		bigV = triangle.v2();
+		smallV = triangle.v1();
+	} else {//point between v0, v2
+		bigV = triangle.v2();
+		smallV = triangle.v0();
+	}
+	float z0 = smallV.depth; //Z depth furthest vertex from camera
+	float z1 = bigV.depth; //Z depth closest vertex from camera
+	float c0 = smallV.texturePoint.y; //texture y coord furthest from camera
+	float c1 = bigV.texturePoint.y; //texture y coord closest to camera
+	float q = (point.y - smallV.y) / (bigV.y -smallV.y); // ratio along triangle from smallest y
+
+	if (smallV.y == bigV.y) { //edge case when both y are the same
+		if(vertex == 0 || vertex == 1) q=0; //favour smaller y vertices when choosing starting point of line
+		if (vertex ==2) q=1; //favour v2 when choosing a line endpoint
+	} 
+
+	float c; //row of the texture image we should use
+
+	c = ( (c0*( 1-q) )/z0 + (c1*q)/z1 ) / ( (1-q)/z0 + q/z1 );
+
+	if (c<0 || c > triangle.textureMap.height) {
+		std::cout << "vertex: " << vertex << "\n";
+		std::cout << "smallV.z: " << smallV.z << " bigV.z: " << bigV.z << "\n";
+		std::cout << "smallV.texturePoint.y: " << smallV.texturePoint.y << "\n";
+		std::cout << "bigV.texturePoint.y: " << bigV.texturePoint.y << "\n";
+		std::cout << "q: " << q << "\n"; 
+
+		int x; 
+		std::cin >> x;
+	}
+
+
+
+	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*q);
+	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*q);
+
+	//std::cout << "yTexture: " << yTexture << "\n";
+	//std::cout << "c: " << c << "\n"; 
+	//std::cout << "xTexture: " << xTexture << " yTexture: " << yTexture << "\n";
+
+	
+	if (xTexture > triangle.textureMap.width ) {
+		std::cout << "vertex: " << vertex << "\n";
+		std::cout << "smallV.y: " << smallV.y << " bigV.y: " << bigV.y << "\n";
+		std::cout << "point.y: " << point.y << "\n";
+		std::cout << "ratio: " << q << "\n";
+		std::cout << "xTexture: " << xTexture << "\n";
+		
+		std::cout << "this is rly messed upggg\n";
+	}
+
+	if (yTexture > triangle.textureMap.height) {
+		std::cout << "vertex: " << vertex << "\n";
+		std::cout << "smallV.y: " << smallV.y << " bigV.y: " << bigV.y << "\n";
+		std::cout << "point.y: " << point.y << "\n";
+		std::cout << "ratio: " << q << "\n";
+		std::cout << "xTexture: " << xTexture << "\n";
+
+		std::cout << "this is rly messed upggggg 2\n";
+	}
+
+	textureP = TexturePoint(xTexture,round(c));
 	return textureP;
 }
 
@@ -295,12 +375,13 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 	float c1 = bigV.texturePoint.y; //texture y coord closest to camera
 	float q = (point.y - smallV.y) / (bigV.y -smallV.y); // ratio along triangle from smallest y
 
-	if (smallV.y == bigV.y) {
-		if(vertex == 0 || vertex == 1) q=0;
-		if (vertex ==2) q=1;
+	if (smallV.y == bigV.y) { //edge case when both y are the same
+		if(vertex == 0 || vertex == 1) q=0; //favour smaller y vertices when choosing starting point of line
+		if (vertex ==2) q=1; //favour v2 when choosing a line endpoint
 	} 
 
 	float c; //row of the texture image we should use
+
 
 	c = ( (c0*( 1-q) )/z0 + (c1*q)/z1 ) / ( (1-q)/z0 + q/z1 );
 
@@ -492,7 +573,17 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour &
 				curY[i]+=yStepSize[i];
 			}
 		}
+		
 	}
+/* 	std::cout << "traingle.v0.x: " << triangle.v0().x << "  y: " << triangle.v0().y  << "\n"; 
+	std::cout << "traingle.v1.x: " << triangle.v1().x << "  y: " << triangle.v1().y  << "\n"; 
+	std::cout << "traingle.v2.x: " << triangle.v2().x << "  y: " << triangle.v2().y  << "\n"; 
+	std::cout << "traingle.v0.texture.x: " << triangle.v0().texturePoint.x << "  y: " << triangle.v0().texturePoint.y  << "\n"; 
+	std::cout << "traingle.v1.texture.x: " << triangle.v1().texturePoint.x << "  y: " << triangle.v1().texturePoint.y  << "\n"; 
+	std::cout << "traingle.v2.texture.x: " << triangle.v2().texturePoint.x << "  y: " << triangle.v2().texturePoint.y  << "\n"; 
+	int f;
+	std::cin >> f; */
+
 	//drawStrokedTriangle(window,triangle,Colour(255,255,255));
 	//window.setPixelColour(round(x),round(y), colour_32);
 }
@@ -719,7 +810,7 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
-void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 lightSource,glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
+void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, std::vector<glm::vec3> &lightSources,glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 	//const float planeScaler = 200 ;
@@ -741,42 +832,57 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, g
 			//std::cout << inter.normal[0] << "," << inter.normal[1] << "," << inter.normal[2] << "\n";
 			//std::cout << inter.intersectedTriangle.normal[0] << "," << inter.intersectedTriangle.normal[1] << "," << inter.intersectedTriangle.normal[2] << "\n";
 			//std::cout << glm::dot(inter.normal, inter.intersectedTriangle.normal) << "\n";
-			//std::cout << "\n";
+			
+			//std::cout << "made it to drawRayTrace before inter\n";
 
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
-				glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-				RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
-				float brightness=0;
+				int lightsVisible = 0;
+				float brightness = 0;
+				
+				for (glm::vec3 lightSource : lightSources) {
 
-				if (inter.normal == glm::vec3(0,0,0)) {
-					std::cout << "wtd\n";
-				}
-
-				if (shadowInter.distanceFromCamera > 1) {
-					//------proximity---------
-					brightness += 1 /2* ( pow(glm::length(shadowRay),2)); 
-					//----angle of incidence--
-					float incidentDot= glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay));
-					if (incidentDot < 0) incidentDot = 0;
-					brightness += incidentDot/2;
-					//brightness += glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
-					//------specular----------
-					glm::vec3 reflection = (-shadowRay) - (2.0f * inter.normal * (glm::dot(-shadowRay,inter.normal)));
-					//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
-					float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
-					if (specular < 0) specular =0;
-					brightness += pow(specular,240);
+					glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
+					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles);
+					//std::cout << "light source x: " << lightSource[0] << " y: " << lightSource[1] << " z:" << lightSource[2] << "\n"; 
+					if (shadowInter.distanceFromCamera > 1) {
+						lightsVisible++;
+						//------proximity---------
+						brightness += 1 / (2.2* ( pow(glm::length(shadowRay),2))); 
+						//----angle of incidence--
+						//float incidentDot= glm::dot(glm::normalize(inter.normal),-glm::normalize(shadowRay));
+						float incidentDot = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
+						if (incidentDot < 0) incidentDot = 0;
+						brightness += incidentDot/2;
+						
+						//------specular----------
+						//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.normal * (glm::dot(-shadowRay,inter.normal)));
+						glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
+						float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
+						if (specular < 0) specular =0;
+						brightness += pow(specular,200);
+					}
 		
 				}
+				/*
+				std::cout << "lights visible:" << lightsVisible << "\n";
+				std::cout << "lights visible / lightsources: " << lightsVisible /lightSources.size();
+				std::cout << "brightness before:" << brightness << "\n";
+				
+				std::cout << "brightness after:" << brightness << "\n";
+
+				 int x;
+				std::cin >> x; */
+
+				brightness = brightness / lightSources.size();
 				brightness += 0.1; //universal suppliment
 				if (brightness > 1) brightness =1;
 				Colour colour = inter.intersectedTriangle.colour;
 
-				if (colour.red == NULL ) {
+/* 				if (colour.red == NULL ) {
 					colour.red = 255;
 					colour.blue = 0;
 					colour.green = 0;
-				}   
+				}    */
 
 				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 				window.setPixelColour(x,y,colour_32);
@@ -836,7 +942,7 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 	//drawDepth(window,depthBuffer);
 }
 
-void handleEvent(SDL_Event event, DrawingWindow &window,glm::vec3 &lightSource, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
+void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<glm::vec3> &lightSources, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
 	const float xStep = 0.05; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
@@ -973,24 +1079,29 @@ void handleEvent(SDL_Event event, DrawingWindow &window,glm::vec3 &lightSource, 
 			std::cout << "render type changed to draw ray trace scene\n";
 
 		}  else if (event.key.keysym.sym == SDLK_j) {
-			lightSource[0] +=lightIncrement;
-			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+			for (glm::vec3 lightSource : lightSources) {
+				lightSource.x +=lightIncrement;
+			}
 		}  else if (event.key.keysym.sym == SDLK_l) {
-			lightSource[0] -=lightIncrement;
-			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+			for (glm::vec3 lightSource : lightSources) {
+				lightSource.x -=lightIncrement;
+			}
 		}  else if (event.key.keysym.sym == SDLK_i) {
-			lightSource[2] -=lightIncrement;
-			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+			for (glm::vec3 lightSource : lightSources) {
+				lightSource.z -=lightIncrement;
+			}
 		}  else if (event.key.keysym.sym == SDLK_k) {
-			lightSource[2] +=lightIncrement;
-			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+			for (glm::vec3 lightSource : lightSources) {
+				lightSource.z +=lightIncrement;
+			}
 		}  else if (event.key.keysym.sym == SDLK_0) {
-			lightSource[1] +=lightIncrement;
-			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
+			for (glm::vec3 lightSource : lightSources) {
+				lightSource.y +=lightIncrement;
+			}
 		}  else if (event.key.keysym.sym == SDLK_o) {
-			lightSource[1] -=lightIncrement;
-			std::cout << "light source: " << lightSource[0] << ", " << lightSource[1] << ", " << lightSource[2] << "\n";
-	
+			for (glm::vec3 lightSource : lightSources) {
+				lightSource.y -=lightIncrement;
+			}
 		} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 			window.savePPM("output.ppm");
 			window.saveBMP("output.bmp"); 
@@ -1010,12 +1121,21 @@ int main(int argc, char *argv[]) {
 	glm::vec3 lightSource = glm::vec3(0,0.5,2); //sphere light location */
 
 	//std::vector<ModelTriangle> triangles = loadObj("cornell-box-texture.obj","cornell-box-texture.mtl",objScaler);
-	//std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
-	std::vector<ModelTriangle> triangles = loadObj("triangle-texture.obj","triangle-texture.mtl",objScaler);
+	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
+	//std::vector<ModelTriangle> triangles = loadObj("triangle-texture.obj","triangle-texture.mtl",objScaler);
 
 	glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
 	glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
-	
+
+	std::vector<glm::vec3> lightSources;
+	float lightIncrement =  0.05;
+	int index = 0;
+	for (int x = -2; x < 3; x++) {
+		for (int z = -2; z < 3; z++) {
+			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
+		}
+	}
+	std::cout << "lightsources size: " << lightSources.size()  << "\n";
 
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
@@ -1028,7 +1148,7 @@ int main(int argc, char *argv[]) {
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
-		if (window.pollForInputEvents(event)) handleEvent(event, window,lightSource ,cameraPos, camOrientation,renderTypeIndex);
+		if (window.pollForInputEvents(event)) handleEvent(event, window,lightSources ,cameraPos, camOrientation,renderTypeIndex);
 		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		if (renderTypeIndex == 0) {
@@ -1037,7 +1157,7 @@ int main(int argc, char *argv[]) {
 			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
 		} else if (renderTypeIndex == 2) {
 			
-			drawRayTrace(window,triangles,lightSource,cameraPos,camOrientation);
+			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation);
 			/*window.renderFrame();
 			std::cout<< "Ray trace scene rendered! Enter Y to continue...\n";
 			char ok;
