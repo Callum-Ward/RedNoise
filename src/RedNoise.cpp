@@ -597,7 +597,35 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	std::string colourName;
 	std::vector<std::string> sections;
 
+/* 	std::ifstream ReadFile("sphere copy.obj");
+	std::vector<std::string> newVertices;
+	while (getline (ReadFile, line)) {
+		sections = split(line, ' ');
+		if (sections.size()>0) {
+			if (sections[0] == "f") {
+				std::vector<std::string> sec1 = split(sections[1], '/');
+				std::vector<std::string> sec2 = split(sections[2], '/');
+				std::vector<std::string> sec3 = split(sections[3], '/');
+				std::string newVertex = "f " +  std::to_string(std::stoi(sec1[0])+ 64) + "/ " +   std::to_string(std::stoi(sec2[0])+ 64) + "/ " + std::to_string(std::stoi(sec3[0])+ 64) + "/";
+				newVertices.push_back(newVertex);
+			}
+		}
+	}
+	ReadFile.close();
+
 	
+    std::ofstream myfile("sphere updated.obj");
+
+    if(myfile.is_open())
+    {	
+		for (std::string vertex : newVertices) {
+			myfile<<vertex<< std::endl;
+		}
+        myfile.close();
+    }
+	int x;
+	std::cin >> x;
+ */
 	std::ifstream MyReadFileMtl(mtlFilename);
 	while (getline (MyReadFileMtl, line)) {
 		sections = split(line, ' ');
@@ -744,7 +772,6 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				if (triangles[i].surfaceType == "flat") {
 					theRay.normal = triangles[i].normal;
 				} else {
-					std::cout << "not flat found\n";
 					float w = 1 - (u + v);
 					theRay.normal = glm::normalize((w * triangles[i].normals[0])+(u * triangles[i].normals[1])+(v * triangles[i].normals[2]));
 				}
@@ -762,18 +789,6 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 
 		glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
 		theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0);	
-/* 		std::cout << "ray.x: " << ray.x << ", " << ray.y << ", " << ray.z << "\n";
-		std::cout << "theRay.normal.x: " << theRay.normal.x << ", " << theRay.normal.y << ", " << theRay.normal.z << "\n";
-		
-		if (reflection.z > 0) {
-			int x;
-			std::cin >> x;
-		} 
-
-		
-		std::cout << "reflection.x: " << reflection.x << ", " << reflection.y << ", " << reflection.z << "\n";
-		std::cout << "theRay.inter.x: " << theRay.intersectionPoint.x << ", " << theRay.intersectionPoint.y << ", " << theRay.intersectionPoint.z << "\n";
-		std::cout << "inter.colour:" << theRay.intersectedTriangle.colour.name << "\n"; */
 
 	}
 	
@@ -945,34 +960,103 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 	//drawDepth(window,depthBuffer);
 }
 
-void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<glm::vec3> &lightSources, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
+void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangle> &triangles,std::vector<glm::vec3> &lightSources, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
 	const float xStep = 0.05; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
 	const float lightIncrement = 0.25;
 	const float theta = M_PI/13 ; // 9 degree increments
+	int sphereIndex;
+
+	
 	
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) { 
 			std::cout << "LEFT" << std::endl;
-			cameraPos.x = cameraPos.x -xStep;
+			//cameraPos.x = cameraPos.x -xStep;
+			for (size_t i = 0; i < triangles.size(); i++)
+			{
+				if (triangles[i].surfaceType == "smooth") {
+					triangles[i].vertices[0].x -= xStep;
+					triangles[i].vertices[1].x -= xStep;
+					triangles[i].vertices[2].x -= xStep;
+				}
+			}
+
 		} else if (event.key.keysym.sym == SDLK_RIGHT) {
-			cameraPos.x = cameraPos.x +xStep;
+			//cameraPos.x = cameraPos.x +xStep;
+			for (size_t i = 0; i < triangles.size(); i++)
+			{
+				if (triangles[i].surfaceType == "smooth") {
+					triangles[i].vertices[0].x += xStep;
+					triangles[i].vertices[1].x += xStep;
+					triangles[i].vertices[2].x += xStep;
+				}
+			}
 			std::cout << "RIGHT" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_UP) {
 			std::cout << "camera y pos before " << cameraPos[1] << "\n";
-			cameraPos.y = cameraPos.y-yStep; //y grows down
+			for (size_t i = 0; i < triangles.size(); i++)
+			{
+				if (triangles[i].surfaceType == "smooth") {
+					triangles[i].vertices[0].y -= xStep;
+					triangles[i].vertices[1].y -= xStep;
+					triangles[i].vertices[2].y -= xStep;
+				}
+			}
+			//cameraPos.y = cameraPos.y-yStep; //y grows down
 			std::cout << "camera y pos after " << cameraPos[1] << "\n";
 			std::cout << "UP" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_DOWN) {
-			cameraPos.y = cameraPos.y +yStep;
+			for (size_t i = 0; i < triangles.size(); i++)
+			{
+				if (triangles[i].surfaceType == "smooth") {
+					triangles[i].vertices[0].y += xStep;
+					triangles[i].vertices[1].y += xStep;
+					triangles[i].vertices[2].y += xStep;
+				}
+			}
+			//cameraPos.y = cameraPos.y +yStep;
 			std::cout << "DOWN" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_w) {
-			cameraPos.z = cameraPos.z - zStep;
+			for (size_t i = 0; i < triangles.size(); i++)
+			{
+				if (triangles[i].surfaceType == "smooth") {
+					triangles[i].vertices[0].z -= xStep;
+					triangles[i].vertices[1].z -= xStep;
+					triangles[i].vertices[2].z -= xStep;
+				}
+			}
+			//cameraPos.z = cameraPos.z - zStep;
 			std::cout << "z " << cameraPos.z << std::endl;
 			std::cout << "FORWARD" << std::endl;
+		} else if (event.key.keysym.sym == SDLK_e) {
+			   std::ofstream myfile("sphere updated.obj");
+			  	if(myfile.is_open())
+				{	
+					for (ModelTriangle triangle : triangles) {
+						if (triangle.surfaceType == "smooth") {
+	
+								myfile<< "v " <<  triangle.vertices[0].x << " " << triangle.vertices[0].y << " " << triangle.vertices[0].z << std::endl;
+								myfile<< "v " <<  triangle.vertices[1].x << " " << triangle.vertices[1].y << " " << triangle.vertices[1].z << std::endl;
+								myfile<< "v " <<  triangle.vertices[2].x << " " << triangle.vertices[2].y << " " << triangle.vertices[2].z << std::endl;
+			
+						}
+					}
+					myfile.close();
+				}
+				int x;
+				std::cin >> x;
 		} else if (event.key.keysym.sym == SDLK_s) {
-			cameraPos.z = cameraPos.z + zStep;
+			//cameraPos.z = cameraPos.z + zStep;
+			for (size_t i = 0; i < triangles.size(); i++)
+			{
+				if (triangles[i].surfaceType == "smooth") {
+					triangles[i].vertices[0].z += xStep;
+					triangles[i].vertices[1].z += xStep;
+					triangles[i].vertices[2].z += xStep;
+				}
+			}
 			std::cout << "BACKWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_d) {	
 			glm::mat3 countClock_rot = glm::mat3(
@@ -1151,7 +1235,7 @@ int main(int argc, char *argv[]) {
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
-		if (window.pollForInputEvents(event)) handleEvent(event, window,lightSources ,cameraPos, camOrientation,renderTypeIndex);
+		if (window.pollForInputEvents(event)) handleEvent(event, window,triangles,lightSources ,cameraPos, camOrientation,renderTypeIndex);
 		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		if (renderTypeIndex == 0) {
