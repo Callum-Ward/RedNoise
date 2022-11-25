@@ -14,11 +14,12 @@ struct ModelTriangle {
 	int isTexture;
 	Colour colour{};
 	glm::vec3 normal{};
+	std::string surfaceType;
 	std::array<glm::vec3, 3> normals{};
 
 	ModelTriangle();
-	ModelTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Colour trigColour);
-	ModelTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, std::string textureMapName);
+	ModelTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Colour trigColour, std::string surfaceType);
+	ModelTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, std::string textureMapName, std::string surfaceType);
 
 	friend std::ostream &operator<<(std::ostream &os, const ModelTriangle &triangle);
 };
