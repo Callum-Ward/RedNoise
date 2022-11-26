@@ -1031,22 +1031,73 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			std::cout << "z " << cameraPos.z << std::endl;
 			std::cout << "FORWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_e) {
-			   std::ofstream myfile("sphere updated.obj");
-			  	if(myfile.is_open())
-				{	
-					for (ModelTriangle triangle : triangles) {
-						if (triangle.surfaceType == "smooth") {
-	
-								myfile<< "v " <<  triangle.vertices[0].x << " " << triangle.vertices[0].y << " " << triangle.vertices[0].z << std::endl;
-								myfile<< "v " <<  triangle.vertices[1].x << " " << triangle.vertices[1].y << " " << triangle.vertices[1].z << std::endl;
-								myfile<< "v " <<  triangle.vertices[2].x << " " << triangle.vertices[2].y << " " << triangle.vertices[2].z << std::endl;
-			
-						}
+			std::string line;
+			std::vector<std::string> sections;
+			std::string surfaceType;
+			std::ifstream MyReadFile("cornell-box.obj");
+			std::vector<int> faceOrder;
+			while (getline(MyReadFile, line)) {
+				sections = split(line, ' ');
+				if (sections.size()>0) {
+
+					if (sections[0] == "v") {
+
+					} else if (sections[0] == "vt") {
+
+					} else if (sections[0] == "f" && surfaceType == "smooth") {
+
+						//std::cout << "f\n";
+						std::vector<std::string> sec1 = split(sections[1], '/');
+						std::vector<std::string> sec2 = split(sections[2], '/');
+						std::vector<std::string> sec3 = split(sections[3], '/');
+						int v0Pos = std::stoi(sec1[0]) -65;
+						int v1Pos = std::stoi(sec2[0]) -65;
+						int v2Pos = std::stoi(sec3[0]) -65;
+						faceOrder.push_back(v0Pos);
+						faceOrder.push_back(v1Pos);
+						faceOrder.push_back(v2Pos);
+
+						if (sec1[1] != "") { //if texture points exist
+					
+						} 
+				
+					
+
+					} else if (sections[0] == "usemtl") {
+					} else if (sections[0] == "surface") {
+						surfaceType = sections[1];
 					}
-					myfile.close();
 				}
-				int x;
-				std::cin >> x;
+			}
+			MyReadFile.close();
+
+			std::vector<glm::vec3> vertices;
+			for (ModelTriangle triangle : triangles) {
+				if (triangle.surfaceType == "smooth") {
+					for (glm::vec3 vertex : triangle.vertices) {						
+						vertices.push_back(vertex);
+					}
+				} 
+			}
+
+			std::array<glm::vec3, 58> verticesOrdered;
+			int vertexCount = 0;
+			for (int facePos : faceOrder) {
+				verticesOrdered[facePos] = vertices[vertexCount];
+				vertexCount++;
+			}
+			std::ofstream myfile("sphere updated.obj");
+			if(myfile.is_open())
+			{	
+				for (glm::vec3 vertex : verticesOrdered) {
+					myfile<< "v " <<  -(vertex.x / 0.35) << " " << vertex.y /0.35 << " " << vertex.z /0.35 << std::endl;
+				}
+				
+				myfile.close();
+			}
+			//for (int vertex)
+			
+		
 		} else if (event.key.keysym.sym == SDLK_s) {
 			//cameraPos.z = cameraPos.z + zStep;
 			for (size_t i = 0; i < triangles.size(); i++)
