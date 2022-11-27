@@ -1,11 +1,13 @@
 #include "RayTriangleIntersection.h"
+#include "Colour.h"
 
 RayTriangleIntersection::RayTriangleIntersection() = default;
 RayTriangleIntersection::RayTriangleIntersection(const glm::vec3 &point, float distance, const ModelTriangle &triangle, size_t index) :
 		intersectionPoint(point),
 		distanceFromCamera(distance),
 		intersectedTriangle(triangle),
-		triangleIndex(index) {}
+		triangleIndex(index) ,
+		colour(Colour(0,0,0)) {}
 
 std::ostream &operator<<(std::ostream &os, const RayTriangleIntersection &intersection) {
 	os << "Intersection is at [" << intersection.intersectionPoint[0] << "," << intersection.intersectionPoint[1] << "," <<

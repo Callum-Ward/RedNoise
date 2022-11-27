@@ -3,11 +3,13 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include "ModelTriangle.h"
+#include "Colour.h"
 
 struct RayTriangleIntersection {
 	glm::vec3 intersectionPoint;
 	float distanceFromCamera;
 	ModelTriangle intersectedTriangle;
+	Colour colour;
 	size_t triangleIndex;
 	glm::vec3 normal;
 
