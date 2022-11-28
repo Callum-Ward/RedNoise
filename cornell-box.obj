@@ -62,7 +62,7 @@ f 22/ 23/ 24/
 
 o short_box
 surface flat
-usemtl Reflective
+usemtl Blue
 v 2.05241 -1.08875 1.58365
 v 2.53241 -1.09002 -0.0163406
 v 0.952416 -1.0904 -0.486341

@@ -103,6 +103,7 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 
 			int x = round(from.x + xStepSize*i);
 			int y = round(from.y + yStepSize*i);
+
 			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
 				float depth = getPointDepth(from,to,x,y) ; 
 				if ( 1/ (1+ depth) > depthBuffer[x][y]){
@@ -114,42 +115,6 @@ void drawLineDepth(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colo
 				} 
 			}
 		}
-	}
-}
-
-void drawLineDepthOriginal(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour,std::vector<std::vector<float>> &depthBuffer) {
-	uint32_t colour_32 = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
-	//std::cout << "we made it kind of\n";
-
-	if (from.x == to.x && from.y == to.y && from.x>=0 && from.x < window.width && from.y >=0 && from.y < window.height) {
-		if (from.depth > depthBuffer[from.x][from.y]){
-			depthBuffer[from.x][from.y] = (1/ (1+exp(-from.depth)));
-			window.setPixelColour(from.x,from.y, colour_32);
-		}
-	} else {
-		float xDiff = to.x-from.x;
-		float yDiff = to.y-from.y;
-		float numberOfSteps = fmax(abs(xDiff),abs(yDiff));
-		float xStepSize = xDiff / numberOfSteps;
-		float yStepSize = yDiff / numberOfSteps;
-
-		for (size_t i = 0; i <= numberOfSteps; i++) {
-
-			int x = round(from.x + xStepSize*i);
-			int y = round(from.y + yStepSize*i);
-			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
-				float depth = getPointDepth(from,to,x,y) ; //sigmoid function outputs 0-1 range
-				if (depth > depthBuffer[x][y]){
-					depthBuffer[x][y] = (depth);
-					window.setPixelColour(x,y, colour_32);
-				} else {
-					//std::cout << "current depth " << depth << "\n"; 
-					//std::cout << "depth " << depthBuffer[x][y] << "\n"; 
-					//window.setPixelColour(x,y, white);
-				}
-			}
-		}
-		//std::cout << "\n";
 	}
 }
 
@@ -165,9 +130,13 @@ void drawLine(DrawingWindow &window, CanvasPoint &from, CanvasPoint &to, Colour 
 		float yStepSize = yDiff / numberOfSteps;
 		for (size_t i = 0; i <= numberOfSteps; i++)
 		{
+
 			int x = round(from.x + xStepSize*i);
 			int y = round(from.y + yStepSize*i);
-			window.setPixelColour(x,y, colour_32);
+			if (x>=0 && x < window.width && y>=0 && y < window.height ) {
+				window.setPixelColour(x,y, colour_32);
+			}
+			
 		}
 	}
 }
@@ -277,81 +246,6 @@ TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int verte
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*ratio);
 
 	textureP = TexturePoint(xTexture,yTexture);
-	return textureP;
-}
-
-TexturePoint getCorrectedTexturePointv2(CanvasTriangle triangle,CanvasPoint point,int vertex) {
-	//interpolate texture point along edge between vertices
-	TexturePoint textureP;
-	CanvasPoint bigV,smallV; //bigV refers to the vertex with larger y, ratio based off y 
-
-	if (vertex == 0) { //point between v0, v1
-		bigV = triangle.v1();
-		smallV = triangle.v0();
-	} else if (vertex == 1) {//point between v1, v2
-		bigV = triangle.v2();
-		smallV = triangle.v1();
-	} else {//point between v0, v2
-		bigV = triangle.v2();
-		smallV = triangle.v0();
-	}
-	float z0 = smallV.depth; //Z depth furthest vertex from camera
-	float z1 = bigV.depth; //Z depth closest vertex from camera
-	float c0 = smallV.texturePoint.y; //texture y coord furthest from camera
-	float c1 = bigV.texturePoint.y; //texture y coord closest to camera
-	float q = (point.y - smallV.y) / (bigV.y -smallV.y); // ratio along triangle from smallest y
-
-	if (smallV.y == bigV.y) { //edge case when both y are the same
-		if(vertex == 0 || vertex == 1) q=0; //favour smaller y vertices when choosing starting point of line
-		if (vertex ==2) q=1; //favour v2 when choosing a line endpoint
-	} 
-
-	float c; //row of the texture image we should use
-
-	c = ( (c0*( 1-q) )/z0 + (c1*q)/z1 ) / ( (1-q)/z0 + q/z1 );
-
-	if (c<0 || c > triangle.textureMap.height) {
-		std::cout << "vertex: " << vertex << "\n";
-		std::cout << "smallV.z: " << smallV.z << " bigV.z: " << bigV.z << "\n";
-		std::cout << "smallV.texturePoint.y: " << smallV.texturePoint.y << "\n";
-		std::cout << "bigV.texturePoint.y: " << bigV.texturePoint.y << "\n";
-		std::cout << "q: " << q << "\n"; 
-
-		int x; 
-		std::cin >> x;
-	}
-
-
-
-	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*q);
-	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*q);
-
-	//std::cout << "yTexture: " << yTexture << "\n";
-	//std::cout << "c: " << c << "\n"; 
-	//std::cout << "xTexture: " << xTexture << " yTexture: " << yTexture << "\n";
-
-	
-	if (xTexture > triangle.textureMap.width ) {
-		std::cout << "vertex: " << vertex << "\n";
-		std::cout << "smallV.y: " << smallV.y << " bigV.y: " << bigV.y << "\n";
-		std::cout << "point.y: " << point.y << "\n";
-		std::cout << "ratio: " << q << "\n";
-		std::cout << "xTexture: " << xTexture << "\n";
-		
-		std::cout << "this is rly messed upggg\n";
-	}
-
-	if (yTexture > triangle.textureMap.height) {
-		std::cout << "vertex: " << vertex << "\n";
-		std::cout << "smallV.y: " << smallV.y << " bigV.y: " << bigV.y << "\n";
-		std::cout << "point.y: " << point.y << "\n";
-		std::cout << "ratio: " << q << "\n";
-		std::cout << "xTexture: " << xTexture << "\n";
-
-		std::cout << "this is rly messed upggggg 2\n";
-	}
-
-	textureP = TexturePoint(xTexture,round(c));
 	return textureP;
 }
 
@@ -542,6 +436,7 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour &
 			curX[0] = x[1];
 			curY[0] = y[1];		
 		}
+		
 		for (size_t i = 0; i < 2; i++){
 			while(round(curY[i]) == row){	
 
@@ -556,19 +451,18 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour &
 				lineEnd = CanvasPoint(round(curX[1]),row, getPointDepth(triangle.v0(),triangle.v2(), round(curX[1]),row));
 				if (triangle.isTexture) lineEnd.texturePoint = getCorrectedTexturePoint(triangle, lineEnd,2);
 
-				if (lineStart.depth < 0 && lineEnd.depth < 0) continue;
-				if (triangle.isTexture) {
+				//if (lineStart.depth < 0 && lineEnd.depth < 0) continue;
 
+				if (triangle.isTexture) {
 					std::vector<uint32_t> rowTexture = getScaledRowTexture(triangle,lineStart,lineEnd); //get the exact number of pixels required to draw in image by scaling fetched texture
 					colour.rowTexture = rowTexture;
 					colour.isTexture = 1;
-
 				}
 
 				drawLineDepth(window,lineStart,lineEnd,colour,depthBuffer);
 
 				//drawLineDepthOriginal(window,lineStart,lineEnd,colour,depthBuffer);
-				if (yStepSize[i] == 0) break;
+				//if (yStepSize[i] == 0) break;
 				if (round(curX[i]) == x[2] && round(curY[i]) == y[2]) break;
 				curX[i]+=xStepSize[i];
 				curY[i]+=yStepSize[i];
@@ -696,9 +590,16 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 					int t2Pos = std::stoi(sec2[1]) -1;
 					int t3Pos = std::stoi(sec3[1]) -1;
 
-					TexturePoint tp1 = TexturePoint(tri.textureMap.width * (txtrPoints[t1Pos].x)-1, tri.textureMap.height *(txtrPoints[t1Pos].y)-1);
-					TexturePoint tp2 = TexturePoint(tri.textureMap.width *(txtrPoints[t2Pos].x)-1, tri.textureMap.height *(txtrPoints[t2Pos].y)-1);;
-					TexturePoint tp3 = TexturePoint(tri.textureMap.width *(txtrPoints[t3Pos].x)-1, tri.textureMap.height *(txtrPoints[t3Pos].y)-1);
+					TexturePoint tp1 = TexturePoint(tri.textureMap.width * (txtrPoints[t1Pos].x), tri.textureMap.height *(txtrPoints[t1Pos].y));
+					TexturePoint tp2 = TexturePoint(tri.textureMap.width *(txtrPoints[t2Pos].x), tri.textureMap.height *(txtrPoints[t2Pos].y));;
+					TexturePoint tp3 = TexturePoint(tri.textureMap.width *(txtrPoints[t3Pos].x), tri.textureMap.height *(txtrPoints[t3Pos].y));
+					if (tp1.x > 0) tp1.x -= 1;
+					if (tp2.x > 0) tp2.x -= 1;
+					if (tp3.x > 0) tp3.x -= 1;
+					if (tp1.y > 0) tp1.y -= 1;
+					if (tp2.y > 0) tp2.y -= 1;
+					if (tp3.y > 0) tp3.y -= 1;
+				
 					std::array<TexturePoint, 3> triTexturePoints = {tp1,tp2,tp3};
 					tri.texturePoints = triTexturePoints; 
 
@@ -806,7 +707,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 	theRay.distanceFromCamera = 1000;
 
 	for (size_t i=0;i<triangles.size();i++) {
-		if (triangles[i].colour.name == "Glass" && shadowRay) continue;
+		//if (triangles[i].colour.name == "Glass" && shadowRay) continue;
 		glm::vec3 e0 = triangles[i].vertices[1] - triangles[i].vertices[0];
 		glm::vec3 e1 = triangles[i].vertices[2] - triangles[i].vertices[0];
 		glm::vec3 SPVector = (cameraPos - triangles[i].vertices[0]);
@@ -1022,7 +923,12 @@ void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triang
 		for (size_t i = 0; i <3; i++){
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
 		}
-		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),Colour(255,255,255));
+
+		Colour colour = Colour(255,255,255);
+		if (!triangle.isTexture) {
+			colour = triangle.colour;
+		} 
+		drawStrokedTriangle(window,CanvasTriangle(v[0],v[1],v[2]),colour);
 
 	}
 }
@@ -1047,10 +953,10 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 			}	
 			//std::cout << "New z: " << v[i].depth << "\n";
 		}
-		if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue; //early validation to save time processing objects outside the image plane
-		if (v[0].y < 0 && v[1].y < 0 && v[2].y < 0) continue;
-		if (v[0].x > window.width && v[1].x > window.width && v[2].x < window.width) continue;
-		if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
+		//if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue; //early validation to save time processing objects outside the image plane
+		//if (v[0].y < 0 && v[1].y < 0 && v[2].y < 0) continue;
+		//if (v[0].x > window.width && v[1].x > window.width && v[2].x < window.width) continue;
+		//if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
 		CanvasTriangle tri = CanvasTriangle(v[0],v[1],v[2]);
 		if (triangle.isTexture) {
 			//std::cout << "texture found in drawRasterisedScene1\n";
@@ -1075,61 +981,61 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) { 
 			std::cout << "LEFT" << std::endl;
-			//cameraPos.x = cameraPos.x -xStep;
-			for (size_t i = 0; i < triangles.size(); i++)
+			cameraPos.x = cameraPos.x -xStep;
+			/* for (size_t i = 0; i < triangles.size(); i++) 
 			{
 				if (triangles[i].surfaceType == "smooth") {
 					triangles[i].vertices[0].x -= xStep;
 					triangles[i].vertices[1].x -= xStep;
 					triangles[i].vertices[2].x -= xStep;
 				}
-			}
+			}*/
 
 		} else if (event.key.keysym.sym == SDLK_RIGHT) {
-			//cameraPos.x = cameraPos.x +xStep;
-			for (size_t i = 0; i < triangles.size(); i++)
+			cameraPos.x = cameraPos.x +xStep;
+			/* for (size_t i = 0; i < triangles.size(); i++) 
 			{
 				if (triangles[i].surfaceType == "smooth") {
 					triangles[i].vertices[0].x += xStep;
 					triangles[i].vertices[1].x += xStep;
 					triangles[i].vertices[2].x += xStep;
 				}
-			}
+			}*/
 			std::cout << "RIGHT" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_UP) {
 			std::cout << "camera y pos before " << cameraPos[1] << "\n";
-			for (size_t i = 0; i < triangles.size(); i++)
+		/* 	for (size_t i = 0; i < triangles.size(); i++) 
 			{
 				if (triangles[i].surfaceType == "smooth") {
 					triangles[i].vertices[0].y -= xStep;
 					triangles[i].vertices[1].y -= xStep;
 					triangles[i].vertices[2].y -= xStep;
 				}
-			}
-			//cameraPos.y = cameraPos.y-yStep; //y grows down
+			}*/
+			cameraPos.y = cameraPos.y-yStep; //y grows down
 			std::cout << "camera y pos after " << cameraPos[1] << "\n";
 			std::cout << "UP" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_DOWN) {
-			for (size_t i = 0; i < triangles.size(); i++)
+			/* for (size_t i = 0; i < triangles.size(); i++)
 			{
 				if (triangles[i].surfaceType == "smooth") {
 					triangles[i].vertices[0].y += xStep;
 					triangles[i].vertices[1].y += xStep;
 					triangles[i].vertices[2].y += xStep;
 				}
-			}
-			//cameraPos.y = cameraPos.y +yStep;
+			} */
+			cameraPos.y = cameraPos.y +yStep;
 			std::cout << "DOWN" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_w) {
-			for (size_t i = 0; i < triangles.size(); i++)
+			/* for (size_t i = 0; i < triangles.size(); i++) 
 			{
 				if (triangles[i].surfaceType == "smooth") {
 					triangles[i].vertices[0].z -= xStep;
 					triangles[i].vertices[1].z -= xStep;
 					triangles[i].vertices[2].z -= xStep;
 				}
-			}
-			//cameraPos.z = cameraPos.z - zStep;
+			}*/
+			cameraPos.z = cameraPos.z - zStep;
 			std::cout << "z " << cameraPos.z << std::endl;
 			std::cout << "FORWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_e) {
@@ -1207,15 +1113,15 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			
 		
 		} else if (event.key.keysym.sym == SDLK_s) {
-			//cameraPos.z = cameraPos.z + zStep;
-			for (size_t i = 0; i < triangles.size(); i++)
+			cameraPos.z = cameraPos.z + zStep;
+		/* 	for (size_t i = 0; i < triangles.size(); i++) 
 			{
 				if (triangles[i].surfaceType == "smooth") {
 					triangles[i].vertices[0].z += xStep;
 					triangles[i].vertices[1].z += xStep;
 					triangles[i].vertices[2].z += xStep;
 				}
-			}
+			}*/
 			std::cout << "BACKWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_d) {	
 			glm::mat3 countClock_rot = glm::mat3(
@@ -1375,13 +1281,13 @@ int main(int argc, char *argv[]) {
 
 	std::vector<glm::vec3> lightSources;
 	lightSources.push_back(lightSource);
-/* 
-	float lightIncrement =  0.05;
+
+	/* float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
 		}
-	} */
+	}  */
 
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
@@ -1412,6 +1318,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
+		
 		window.renderFrame();
 		/* std::cout << "Render complete!\n";
 		int x;
