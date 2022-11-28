@@ -598,43 +598,64 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	std::string colourName;
 	std::vector<std::string> sections;
 
-/* 	std::ifstream ReadFile("sphere copy.obj");
+	/* std::ifstream ReadFile("logo.obj");
+	std::vector<std::string> newFaces;
 	std::vector<std::string> newVertices;
 	while (getline (ReadFile, line)) {
 		sections = split(line, ' ');
 		if (sections.size()>0) {
+			
 			if (sections[0] == "f") {
 				std::vector<std::string> sec1 = split(sections[1], '/');
 				std::vector<std::string> sec2 = split(sections[2], '/');
 				std::vector<std::string> sec3 = split(sections[3], '/');
-				std::string newVertex = "f " +  std::to_string(std::stoi(sec1[0])+ 64) + "/ " +   std::to_string(std::stoi(sec2[0])+ 64) + "/ " + std::to_string(std::stoi(sec3[0])+ 64) + "/";
-				newVertices.push_back(newVertex);
+				std::string newFace = "f " +  std::to_string(std::stoi(sec1[0])+ 122) + "/ " +  std::to_string(std::stoi(sec2[0])+ 122) + "/ " +  std::to_string(std::stoi(sec3[0])+ 122) + "/";
+				if (sec1[1] != "") { //if texture points exist
+					int t1Pos = std::stoi(sec1[1]);
+					int t2Pos = std::stoi(sec2[1]);
+					int t3Pos = std::stoi(sec3[1]);
+					std::string vtPair = std::to_string(std::stoi(sec1[0])+ 122) + "/" + std::to_string(t1Pos);
+					std::string vtPair1 = std::to_string(std::stoi(sec2[0])+ 122) + "/" + std::to_string(t2Pos);
+					std::string vtPair2 = std::to_string(std::stoi(sec3[0])+ 122) + "/" + std::to_string(t3Pos);
+					newFace = "f " +  vtPair + " " +   vtPair1 + " " +  vtPair2;
+				}
+				newFaces.push_back(newFace);
+
+			} else if (sections[0] == "v") {
+				std::string newFace = "v " +  std::to_string(std::stof(sections[1])/250) + " " +  std::to_string(std::stof(sections[2])/250) + " " + std::to_string(std::stof(sections[3])/250) ;
+				newVertices.push_back(newFace);
 			}
 		}
 	}
 	ReadFile.close();
 
 	
-    std::ofstream myfile("sphere updated.obj");
+    std::ofstream myfile("logo updated.obj");
 
     if(myfile.is_open())
     {	
-		for (std::string vertex : newVertices) {
-			myfile<<vertex<< std::endl;
+		for (std::string newFace : newFaces) {
+			myfile<<newFace<< std::endl;
+		}
+		myfile << std::endl;
+
+		for (std::string newVertex : newVertices) {
+			myfile<<newVertex<< std::endl;
 		}
         myfile.close();
     }
 	int x;
-	std::cin >> x;
- */
+	std::cin >> x;  */
+
 	std::ifstream MyReadFileMtl(mtlFilename);
+	Colour colour;
 	while (getline (MyReadFileMtl, line)) {
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 			if (sections[0] == "Kd") {
 				objColours.insert({colourName, Colour(colourName,std::stof(sections[1]),std::stof(sections[2]),std::stof(sections[3]))}); 
 			} else if (sections[0] == "map_Kd") {
-				objColours.insert({colourName, Colour(sections[1],0.0f,0.0f,0.0f)}); 
+				objColours.insert({colourName, Colour(sections[1],std::stof(sections[2]),std::stof(sections[3]),std::stof(sections[4]))}); 
 			} else if (sections[0] == "newmtl") {
 				colourName = sections[1];
 			} 
@@ -652,44 +673,38 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		if (sections.size()>0) {
 
 			if (sections[0] == "v") {
-
-				//std::cout << "v\n";
-				//std::cout << sections[1] << ", " << sections[2] << ", " << sections[3] << "\n"; 
 				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
 				vertices.push_back(newV);
 				
 			} else if (sections[0] == "vt") {
-
 				TexturePoint tp = TexturePoint(std::stof(sections[1]),std::stof(sections[2]));
   				txtrPoints.push_back(tp);
 
 			} else if (sections[0] == "f") {
-
-				//std::cout << "f\n";
 				std::vector<std::string> sec1 = split(sections[1], '/');
 				std::vector<std::string> sec2 = split(sections[2], '/');
 				std::vector<std::string> sec3 = split(sections[3], '/');
-				int v0Pos = std::stoi(sec1[0]) -1;
-				int v1Pos = std::stoi(sec2[0]) -1;
-				int v2Pos = std::stoi(sec3[0]) -1;
+				int v0Pos = std::stoi(sec1[0])-1;
+				int v1Pos = std::stoi(sec2[0])-1;
+				int v2Pos = std::stoi(sec3[0])-1;
+
 				ModelTriangle tri;
 				if (sec1[1] != "") { //if texture points exist
+
 					tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol.name,surfaceType);//curCol.name is texture filename
 					int t1Pos = std::stoi(sec1[1]) -1;
 					int t2Pos = std::stoi(sec2[1]) -1;
 					int t3Pos = std::stoi(sec3[1]) -1;
 
-					TexturePoint tp1 = TexturePoint(tri.textureMap.width *txtrPoints[t1Pos].x-1, tri.textureMap.height *txtrPoints[t1Pos].y-1);
-					TexturePoint tp2 = TexturePoint(tri.textureMap.width *txtrPoints[t2Pos].x-1, tri.textureMap.height *txtrPoints[t2Pos].y-1);;
-					TexturePoint tp3 = TexturePoint(tri.textureMap.width *txtrPoints[t3Pos].x-1, tri.textureMap.height *txtrPoints[t3Pos].y-1);
-
+					TexturePoint tp1 = TexturePoint(tri.textureMap.width * (txtrPoints[t1Pos].x)-1, tri.textureMap.height *(txtrPoints[t1Pos].y)-1);
+					TexturePoint tp2 = TexturePoint(tri.textureMap.width *(txtrPoints[t2Pos].x)-1, tri.textureMap.height *(txtrPoints[t2Pos].y)-1);;
+					TexturePoint tp3 = TexturePoint(tri.textureMap.width *(txtrPoints[t3Pos].x)-1, tri.textureMap.height *(txtrPoints[t3Pos].y)-1);
 					std::array<TexturePoint, 3> triTexturePoints = {tp1,tp2,tp3};
 					tri.texturePoints = triTexturePoints; 
 
 				} else tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol,surfaceType); 
-		
+
 				glm::vec3 normal = -glm::cross(tri.vertices[1] - tri.vertices[0], tri.vertices[2]-tri.vertices[0]);
-		
 				tri.normal = normal;
 				triangles.push_back(tri);
 
@@ -701,7 +716,8 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		}
 	}
 	MyReadFile.close();
-	std::cout << "Read obj file succesfully\n";
+	std::cout << "Loaded " << triangles.size() << " triangles\n";
+
 
 
 	std::array<glm::vec3, 3> normals;
@@ -783,7 +799,7 @@ float fresnel(const glm::vec3 &I, const glm::vec3 &N, const float &ior)
     // kt = 1 - kr;
 } 
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles, int shadowRay,int fresnelCount) {
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 
@@ -799,13 +815,20 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 		float t = possibleSolution[0];
 		float u = possibleSolution[1];
 		float v = possibleSolution[2];
-		
+	
 		if (t < theRay.distanceFromCamera && t > 0.0005 ) { 
 			if ((u >= 0.0) && (u <= 1.0) && (v >= 0.0) && (v <= 1.0) && (u + v) <= 1.0) {
-				
 				theRay.intersectionPoint = triangles[i].vertices[0] + u * e0 + v * e1;
 				theRay.distanceFromCamera = t;
-				theRay.colour = triangles[i].colour;
+
+				if (triangles[i].isTexture==1) {
+					float w = 1 - (u + v);
+					float xTxtPoint = (w * triangles[i].texturePoints[0].x)+(u * triangles[i].texturePoints[1].x)+(v*triangles[i].texturePoints[2].x);
+					float yTxtPoint = (w * triangles[i].texturePoints[0].y)+(u * triangles[i].texturePoints[1].y)+(v*triangles[i].texturePoints[2].y);
+					uint32_t pixel = triangles[i].textureMap.pixels[triangles[i].textureMap.width*(round(xTxtPoint)) + (round(yTxtPoint))];
+					theRay.colour = Colour(((pixel>>16) & 255), ((pixel>>8)&255), (pixel&255));
+				} else theRay.colour = triangles[i].colour;
+
 				theRay.intersectedTriangle = triangles[i];
 				theRay.triangleIndex = i;
 
@@ -823,15 +846,9 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 			}
 		}
 	}	
-	Colour colour = theRay.colour;
-	if (glm::dot(glm::normalize(ray),glm::normalize(theRay.intersectedTriangle.normal)) > 0) {
-		//theRay.colour = Colour(0,0,255);
-	} 
 
-
-	if (shadowRay == 0) {
+	if (shadowRay == 0 && theRay.distanceFromCamera < 1000) {
 		Colour colour;
-
 		if (theRay.intersectedTriangle.colour.name == "Reflective"){			
 			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
 
@@ -942,6 +959,8 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 	window.clearPixels();
 	for (float x = 0; x < window.width; x++) {
 		for (float y = 0; y < window.height; y++){
+			//std::cout << "x: " << x << "\n";
+			//std::cout << "y: " << y << "\n";
 
 			float newX = (x-(window.width/2)) / (focalL*planeScaler); 
 			float newY = (y-window.height/2) / (focalL*planeScaler);
@@ -949,7 +968,8 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 			ray = ray * glm::inverse(cameraOrientation);
 
 			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0);
-	
+			//std::cout << "made it out first ray trace\n";
+
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
 				float brightness = 0;
 			
@@ -957,6 +977,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 
 					glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
 					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0);
+					
 
 					if (shadowInter.distanceFromCamera > 1) {
 						//------proximity---------
@@ -975,35 +996,21 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 						brightness += pow(specular,240);
 					}
 				}
-		
-				/*
-				std::cout << "lights visible:" << lightsVisible << "\n";
-				std::cout << "lights visible / lightsources: " << lightsVisible /lightSources.size();
-				std::cout << "brightness before:" << brightness << "\n";
-				
-				std::cout << "brightness after:" << brightness << "\n";
-
-				int x;
-				std::cin >> x; */
+	
 				
 				brightness = brightness / lightSources.size();
 				brightness += 0.1; //universal suppliment
 				if (brightness > 1) brightness =1;
 				
 				Colour colour = inter.colour;
-				if (glm::dot(glm::normalize(ray),glm::normalize(inter.intersectedTriangle.normal)) > 0) { //the ray is the frist ray transmitted, not the one corrisponding with the normal
-					//colour = Colour(255,0,0); 
-				}
-								
-
 				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 				window.setPixelColour(x,y,colour_32);
 				
 		
 			}
+			//std::cout << "made it end of drawRayTrace trace\n";
 		}
 	}
-
 }
 
 void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triangles, glm::vec3 &cameraPos, glm::mat3 &cameraOrientation ) {
