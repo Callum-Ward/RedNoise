@@ -783,7 +783,7 @@ float fresnel(const glm::vec3 &I, const glm::vec3 &N, const float &ior)
     // kt = 1 - kr;
 } 
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles, int shadowRay, int inGlass, int fresnelCount) {
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> triangles, int shadowRay,int fresnelCount) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 
@@ -815,76 +815,70 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 					float w = 1 - (u + v);
 					theRay.normal = glm::normalize((w * triangles[i].normals[0])+(u * triangles[i].normals[1])+(v * triangles[i].normals[2]));
 				}
-			
+				
 				
 				/* std::cout << "new normal: " << theRay.normal[0] <<  ", " << theRay.normal[1] <<  ", " << theRay.normal[2] << "\n";
 				std::cout << "\n"; */
 
 			}
 		}
-	}
+	}	
+	Colour colour = theRay.colour;
+	if (glm::dot(glm::normalize(ray),glm::normalize(theRay.intersectedTriangle.normal)) > 0) {
+		//theRay.colour = Colour(0,0,255);
+	} 
 
 
 	if (shadowRay == 0) {
-		
+		Colour colour;
 
-		if (theRay.intersectedTriangle.colour.name == "Reflective"){
-				glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
-				theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,0);	
+		if (theRay.intersectedTriangle.colour.name == "Reflective"){			
+			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
+
+			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0);	
 				
 		} else if (theRay.intersectedTriangle.colour.name == "Glass" ){
-			if (inGlass) {
-				float sign = 1;
-				if (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal)) > 0) sign =-1;
-				glm::vec3 refractedRay = refract(glm::normalize(ray),glm::normalize(sign * theRay.normal),0.645);
+
+			if (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal)) > 0) { //if ray inside glass
+
+
+				glm::vec3 refractedRay = refract(glm::normalize(ray),glm::normalize(theRay.normal),0.645);
+				
 				if (refractedRay == glm::vec3(0,0,0)){ //total internal reflection
-					glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(sign *theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(sign *theRay.normal) ) ) );
-					//std::cout << "total internal reflection\n";
-					if (glm::dot(glm::normalize(reflection),glm::normalize(ray)) > 0) reflection = -reflection;
-					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,1, fresnelCount);
+					glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );	
+					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount);
 				} else {
 
-					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,fresnelCount);
+					float reflecMul = 0;
+					Colour rC = theRay.colour;
+					if (fresnelCount < 2) {
+						reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 0.645); //reflection ratio  (transmission = 1 - reflecMul)
+						glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );
+						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++);	
+						rC = reflectRay.colour;
+					}
 
-					float reflecMul = fresnel(glm::normalize(ray), glm::normalize(sign*theRay.normal), 0.645); //reflection ratio  (transmission = 1 - reflecMul)
-					//std::cout << "reflec mul: " << reflecMul << "\n";
-					if (reflecMul > 0.4) {
-						glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(sign *theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(sign *theRay.normal) ) ) );
-						if (glm::dot(glm::normalize(reflection),glm::normalize(ray)) > 0) reflection = -reflection;
-						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,1,fresnelCount++);	
-						Colour tC = theRay.colour; //transmission colour
-						Colour rC = reflectRay.colour;
-						Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
-						theRay.colour = updatedColour;
-						//std::cout <<  "original colour: " << tC.red << ", " << tC.blue << ", " << tC.green << "\n";
-					}	 
-					
+
+					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount);
+					Colour tC = theRay.colour; //transmission colour
+					Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
+					theRay.colour = updatedColour;
 				}
 
 			} else {
-				float sign = 1;
 
-				if (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal)) > 0) sign =-1; //normal is wrong way use inversed normal	
-				glm::vec3 refractedRay = refract(glm::normalize(ray),glm::normalize(sign * theRay.normal),1.55);
-				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,1,fresnelCount);
+				glm::vec3 refractedRay = refract(glm::normalize(ray),glm::normalize(theRay.normal),1.55);
 				
-				float reflecMul = fresnel(glm::normalize(ray), glm::normalize(sign*theRay.normal), 1.55); //reflection ratio  (transmission = 1 - reflecMul)
-				//std::cout << "reflec mul: " << reflecMul << "\n";
+				float reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 1.55); //reflection ratio  (transmission = 1 - reflecMul)
 
-				if (reflecMul > 0) {
-
-					glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(sign *theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(sign *theRay.normal) ) ) );
-					if (glm::dot(glm::normalize(reflection),glm::normalize(ray)) > 0) reflection = -reflection;
-					RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,fresnelCount++);	
-					Colour tC = theRay.colour; //transmission colour
-					Colour rC = reflectRay.colour;
-					Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
-					theRay.colour = updatedColour;
-					//std::cout <<  "original colour: " << tC.red << ", " << tC.blue << ", " << tC.green << "\n";
-
-				} 
-
-				
+				glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
+				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0);	
+			
+				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0);
+				Colour tC = theRay.colour; //transmission colour
+				Colour rC = reflectRay.colour;
+				Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
+				theRay.colour = updatedColour;
 
 			}
 	
@@ -954,7 +948,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
 			ray = ray * glm::inverse(cameraOrientation);
 
-			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0,0);
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0);
 	
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
 				float brightness = 0;
@@ -962,7 +956,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 				for (glm::vec3 lightSource : lightSources) {
 
 					glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0);
+					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0);
 
 					if (shadowInter.distanceFromCamera > 1) {
 						//------proximity---------
@@ -997,8 +991,10 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 				if (brightness > 1) brightness =1;
 				
 				Colour colour = inter.colour;
-
-		
+				if (glm::dot(glm::normalize(ray),glm::normalize(inter.intersectedTriangle.normal)) > 0) { //the ray is the frist ray transmitted, not the one corrisponding with the normal
+					//colour = Colour(255,0,0); 
+				}
+								
 
 				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 				window.setPixelColour(x,y,colour_32);
