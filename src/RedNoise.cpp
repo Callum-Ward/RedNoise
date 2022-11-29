@@ -492,33 +492,36 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	std::string colourName;
 	std::vector<std::string> sections;
 
-	/* std::ifstream ReadFile("logo.obj");
+/* 	std::ifstream ReadFile("cornell-box.obj");
 	std::vector<std::string> newFaces;
 	std::vector<std::string> newVertices;
+	std::string objectName; 
 	while (getline (ReadFile, line)) {
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 			
-			if (sections[0] == "f") {
+			if (sections[0] == "f" && objectName == "logo") {
 				std::vector<std::string> sec1 = split(sections[1], '/');
 				std::vector<std::string> sec2 = split(sections[2], '/');
 				std::vector<std::string> sec3 = split(sections[3], '/');
 				std::string newFace = "f " +  std::to_string(std::stoi(sec1[0])+ 122) + "/ " +  std::to_string(std::stoi(sec2[0])+ 122) + "/ " +  std::to_string(std::stoi(sec3[0])+ 122) + "/";
 				if (sec1[1] != "") { //if texture points exist
-					int t1Pos = std::stoi(sec1[1]);
-					int t2Pos = std::stoi(sec2[1]);
-					int t3Pos = std::stoi(sec3[1]);
-					std::string vtPair = std::to_string(std::stoi(sec1[0])+ 122) + "/" + std::to_string(t1Pos);
-					std::string vtPair1 = std::to_string(std::stoi(sec2[0])+ 122) + "/" + std::to_string(t2Pos);
-					std::string vtPair2 = std::to_string(std::stoi(sec3[0])+ 122) + "/" + std::to_string(t3Pos);
+					int t1Pos = std::stoi(sec1[1]) +4;
+					int t2Pos = std::stoi(sec2[1]) + 4;
+					int t3Pos = std::stoi(sec3[1]) + 4;
+					std::string vtPair = std::to_string(std::stoi(sec1[0])) + "/" + std::to_string(t1Pos);
+					std::string vtPair1 = std::to_string(std::stoi(sec2[0]) ) + "/" + std::to_string(t2Pos);
+					std::string vtPair2 = std::to_string(std::stoi(sec3[0])) + "/" + std::to_string(t3Pos);
 					newFace = "f " +  vtPair + " " +   vtPair1 + " " +  vtPair2;
 				}
 				newFaces.push_back(newFace);
 
-			} else if (sections[0] == "v") {
+			} else if (sections[0] == "o") {
+				objectName = sections[1];
+			}   else if (sections[0] == "v") {
 				std::string newFace = "v " +  std::to_string(std::stof(sections[1])/250) + " " +  std::to_string(std::stof(sections[2])/250) + " " + std::to_string(std::stof(sections[3])/250) ;
 				newVertices.push_back(newFace);
-			}
+			} 
 		}
 	}
 	ReadFile.close();
@@ -533,13 +536,13 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		}
 		myfile << std::endl;
 
-		for (std::string newVertex : newVertices) {
+	 	for (std::string newVertex : newVertices) {
 			myfile<<newVertex<< std::endl;
 		}
-        myfile.close();
+        myfile.close(); 
     }
 	int x;
-	std::cin >> x;  */
+	std::cin >> x;    */
 
 	std::ifstream MyReadFileMtl(mtlFilename);
 	Colour colour;
@@ -584,12 +587,11 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 
 				ModelTriangle tri;
 				if (sec1[1] != "") { //if texture points exist
-
 					tri = ModelTriangle(vertices[v0Pos],vertices[v1Pos],vertices[v2Pos],curCol.name,surfaceType);//curCol.name is texture filename
 					int t1Pos = std::stoi(sec1[1]) -1;
 					int t2Pos = std::stoi(sec2[1]) -1;
 					int t3Pos = std::stoi(sec3[1]) -1;
-
+	
 					TexturePoint tp1 = TexturePoint(tri.textureMap.width * (txtrPoints[t1Pos].x), tri.textureMap.height *(txtrPoints[t1Pos].y));
 					TexturePoint tp2 = TexturePoint(tri.textureMap.width *(txtrPoints[t2Pos].x), tri.textureMap.height *(txtrPoints[t2Pos].y));;
 					TexturePoint tp3 = TexturePoint(tri.textureMap.width *(txtrPoints[t3Pos].x), tri.textureMap.height *(txtrPoints[t3Pos].y));
@@ -617,6 +619,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		}
 	}
 	MyReadFile.close();
+	std::cout << "textpoint read: " << txtrPoints.size() << "\n";
 	std::cout << "Loaded " << triangles.size() << " triangles\n";
 
 
@@ -705,7 +708,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 
 	theRay.distanceFromCamera = 1000;
-
+	uint32_t pixel;
 	for (size_t i=0;i<triangles.size();i++) {
 		//if (triangles[i].colour.name == "Glass" && shadowRay) continue;
 		glm::vec3 e0 = triangles[i].vertices[1] - triangles[i].vertices[0];
@@ -722,11 +725,11 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				theRay.intersectionPoint = triangles[i].vertices[0] + u * e0 + v * e1;
 				theRay.distanceFromCamera = t;
 
-				if (triangles[i].isTexture==1) {
+				if (triangles[i].isTexture==1 && triangles[i].surfaceType == "flat") {
 					float w = 1 - (u + v);
 					float xTxtPoint = (w * triangles[i].texturePoints[0].x)+(u * triangles[i].texturePoints[1].x)+(v*triangles[i].texturePoints[2].x);
 					float yTxtPoint = (w * triangles[i].texturePoints[0].y)+(u * triangles[i].texturePoints[1].y)+(v*triangles[i].texturePoints[2].y);
-					uint32_t pixel = triangles[i].textureMap.pixels[triangles[i].textureMap.width*(round(xTxtPoint)) + (round(yTxtPoint))];
+					pixel = triangles[i].textureMap.pixels[triangles[i].textureMap.width*(round(xTxtPoint)) + (round(yTxtPoint))];
 					theRay.colour = Colour(((pixel>>16) & 255), ((pixel>>8)&255), (pixel&255));
 				} else theRay.colour = triangles[i].colour;
 
@@ -735,6 +738,17 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 
 				if (triangles[i].surfaceType == "flat") {
 					theRay.normal = triangles[i].normal;
+				} else if (triangles[i].isTexture && triangles[i].surfaceType == "smooth") {
+					float w = 1 - (u + v);
+					float xTxtPoint = (w * triangles[i].texturePoints[0].x)+(u * triangles[i].texturePoints[1].x)+(v*triangles[i].texturePoints[2].x);
+					float yTxtPoint = (w * triangles[i].texturePoints[0].y)+(u * triangles[i].texturePoints[1].y)+(v*triangles[i].texturePoints[2].y);
+					pixel = triangles[i].textureMap.pixels[triangles[i].textureMap.width*(round(xTxtPoint)) + (round(yTxtPoint))];
+					//std::cout << "pixel: " << ((pixel>>16) & 255) << ", " << ((pixel>>8)&255) << ", " << (pixel&255) << "\n";
+					theRay.normal = glm::vec3( float((pixel>>16) & 255) / 255, float((pixel>>8)&255)/255,float(pixel&255)/255 );
+					//std::cout << "normal: " << (float(((pixel>>16) & 255))/255) << ", " << (((pixel>>8)&255)/255) << ", " << ((pixel&255)/255) << "\n";
+					//int x;
+					//std::cin >> x;
+					theRay.colour = Colour(0,255,0);
 				} else {
 					float w = 1 - (u + v);
 					theRay.normal = glm::normalize((w * triangles[i].normals[0])+(u * triangles[i].normals[1])+(v * triangles[i].normals[2]));
