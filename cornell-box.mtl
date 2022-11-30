@@ -33,3 +33,6 @@ map_Kd leopard-texture.ppm 0.600000 0.600000 0.600000
 
 newmtl Bump
 map_Kd bump-map.ppm 0.600000 0.100000 0.600000
+
+newmtl Field
+map_Kd map.ppm 0.600000 0.100000 0.600000
