@@ -189,10 +189,10 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle &triangle,CanvasPoint s
 		//std::cout << "size down\n";
 
 		int pixelsToLose = rowTexture.size() - imgLineCoords.size();
-		int stepToErase = rowTexture.size() / pixelsToLose;
+		float stepToErase = float(rowTexture.size()) / float(pixelsToLose);
 		//std::cout << "size down scale: " << (pixelsToLose / (float)rowTexture.size()) << "\n";
 
-		for (size_t i = 0; i < pixelsToLose; i++) { //start erasing from 0	
+		for (int i = 0; i < pixelsToLose; i++) { //start erasing from 0	
 			rowTexture.erase(rowTexture.begin()+ round(i*stepToErase)-i);
 		} 
 
@@ -203,14 +203,23 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle &triangle,CanvasPoint s
 		
 		int pixelsToGain = imgLineCoords.size()-rowTexture.size();
 		//std::cout << "size up scale: " << (pixelsToGain / (float)rowTexture.size()) << "\n";
-		int stepToInsert = rowTexture.size() / pixelsToGain;
-
-		for (size_t i = 0; i < pixelsToGain; i++) {
-
+		float stepToInsert = float(rowTexture.size()) / float(pixelsToGain);
+		
+		for (int i = 0; i < pixelsToGain; i++) {
+			//std::cout << "stepToInsert: " << stepToInsert << "\n";
 			int insertIndex = round(stepToInsert*i)+i;
 			//std::cout << "insert index: " << insertIndex << "\n";
+			/* uint32_t pixelAvg;
+			if (stepToInsert == rowTexture.size()-1 || stepToInsert == 0) {
+				pixelAvg = rowTexture[stepToInsert];
+			} else {
+				pixelAvg = (rowTexture[stepToInsert-1] + rowTexture[stepToInsert+1])/2;
+				std::cout << "pixel avg used\n";
+			} */
+			uint32_t pixel = (255<<24) + (255<<16) + (255<<8) + 255; 
+			//std::cout << insertIndex << "\n";
+			//rowTexture.insert(rowTexture.begin()+insertIndex,pixel);
 			rowTexture.insert(rowTexture.begin()+insertIndex,rowTexture[insertIndex]);
-			//std::cout << "rowTexture size: " << rowTexture.size() << "\n";
 		}
 
 		return rowTexture;
@@ -270,10 +279,10 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 	float c1 = bigV.texturePoint.y; //texture y coord closest to camera
 	float q = (point.y - smallV.y) / (bigV.y -smallV.y); // ratio along triangle from smallest y
 
-	if (smallV.y == bigV.y) { //edge case when both y are the same
+ 	if (smallV.y == bigV.y) { //edge case when both y are the same
 		if(vertex == 0 || vertex == 1) q=0; //favour smaller y vertices when choosing starting point of line
 		if (vertex ==2) q=1; //favour v2 when choosing a line endpoint
-	} 
+	}  
 
 	float c; //row of the texture image we should use
 
@@ -663,7 +672,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
 
 	//float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z; //smaller distance to vertex results in large updated depth
-	float updatedDepth = pow(((vertexPosition  - cameraPosition)*camOrientation).z,2); //smaller distance to vertex results in large updated depth
+	float updatedDepth = sqrt(pow(((vertexPosition  - cameraPosition)*camOrientation).z,2)); //smaller distance to vertex results in large updated depth
 
 	//updatedDepth = 1 / (1 + exp(updatedDepth)); //closer objects results in a smaller depth
 	CanvasPoint point = CanvasPoint(x,y,updatedDepth);
