@@ -573,7 +573,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 		if (sections.size()>0) {
 
 			if (sections[0] == "v") {
-				glm::vec3 newV = glm::vec3(scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
+				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
 				vertices.push_back(newV);		
 			} else if (sections[0] == "vt") {
 				TexturePoint tp = TexturePoint(std::stof(sections[1]),std::stof(sections[2]));
@@ -708,7 +708,7 @@ float fresnel(const glm::vec3 &I, const glm::vec3 &N, const float &ior)
     // kt = 1 - kr;
 } 
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount) {
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount,int findMapping) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 
@@ -719,6 +719,8 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 	uint32_t pixel;
 	for (size_t i=0;i<triangles.size();i++) {
 		//if (triangles[i].colour.name == "Glass" && shadowRay) continue;
+		if (triangles[i].surfaceType == "map" && !findMapping) continue;
+		if (triangles[i].surfaceType != "map" && findMapping) continue;
 		glm::vec3 e0 = triangles[i].vertices[1] - triangles[i].vertices[0];
 		glm::vec3 e1 = triangles[i].vertices[2] - triangles[i].vertices[0];
 		glm::vec3 SPVector = (cameraPos - triangles[i].vertices[0]);
@@ -738,7 +740,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float bestU = u;
 				float bestV = v;
 
-				if (theRay.intersectedTriangle.isTexture==1 && theRay.intersectedTriangle.surfaceType == "flat") {
+				if (theRay.intersectedTriangle.isTexture==1 && theRay.intersectedTriangle.surfaceType == "flat" || theRay.intersectedTriangle.surfaceType == "map") {
 					float w = 1 - (bestU+ bestV);
 					float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
 					float yTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].y)+(bestU* theRay.intersectedTriangle.texturePoints[1].y)+(bestV*theRay.intersectedTriangle.texturePoints[2].y);
@@ -770,18 +772,18 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 
 
 	}
-	
-
-
 
 
 	if (shadowRay == 0 && theRay.distanceFromCamera < 1000) {
 		Colour colour;
 		if (theRay.intersectedTriangle.colour.name == "Reflective"){			
 			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
-
-			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0);	
-				
+			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,0);	
+		} else if (theRay.intersectedTriangle.colour.name == "ReflectiveMap"){
+			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
+			RayTriangleIntersection reflectRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1);	
+			if (reflectRay.distanceFromCamera < 1000) theRay.colour = reflectRay.colour;
+			
 		} else if (theRay.intersectedTriangle.colour.name == "Glass" ){
 
 			if (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal)) > 0) { //if ray inside glass
@@ -791,7 +793,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				
 				if (refractedRay == glm::vec3(0,0,0)){ //total internal reflection
 					glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );	
-					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount);
+					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount,0);
 				} else {
 
 					float reflecMul = 0;
@@ -799,12 +801,12 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 					if (fresnelCount < 2) {
 						reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 0.645); //reflection ratio  (transmission = 1 - reflecMul)
 						glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );
-						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++);	
+						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++,0);	
 						rC = reflectRay.colour;
 					}
 
 
-					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount);
+					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount,0);
 					Colour tC = theRay.colour; //transmission colour
 					Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
 					theRay.colour = updatedColour;
@@ -817,9 +819,9 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 1.55); //reflection ratio  (transmission = 1 - reflecMul)
 
 				glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
-				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0);	
+				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,0);	
 			
-				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0);
+				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,0);
 				Colour tC = theRay.colour; //transmission colour
 				Colour rC = reflectRay.colour;
 				Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
@@ -896,7 +898,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
 			ray = ray * glm::inverse(cameraOrientation);
 
-			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0);
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0,0);
 			//std::cout << "made it out first ray trace\n";
 
 			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
@@ -905,7 +907,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 				for (glm::vec3 lightSource : lightSources) {
 
 					glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0);
+					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0);
 					
 
 					if (shadowInter.distanceFromCamera > 1) {
@@ -971,7 +973,7 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 
 	window.clearPixels();
 	for (ModelTriangle triangle : triangles) {
-				
+		if (triangle.surfaceType == "map") continue;		
 		CanvasPoint v[3];
 		for (size_t i = 0; i <3; i++){
 			v[i] = getCanvasIntersectionPoint(window, cameraPos,cameraOrientation,triangle.vertices[i],focalL,planeScaler);
@@ -1333,7 +1335,7 @@ int main(int argc, char *argv[]) {
 	glm::vec3 lightSource = glm::vec3(0,0.5,2); //sphere light location  */
 
 	//std::vector<ModelTriangle> triangles = loadObj("cornell-box-texture.obj","cornell-box-texture.mtl",objScaler);
-	std::vector<ModelTriangle> triangles = loadObj("cornell-box.obj","cornell-box.mtl",objScaler);
+	std::vector<ModelTriangle> triangles = loadObj("cornell-box copy.obj","cornell-box.mtl",objScaler);
 	//std::vector<ModelTriangle> triangles = loadObj("triangle-texture.obj","triangle-texture.mtl",objScaler);
 
 	glm::vec3 cameraPos = glm::vec3(0,0,5); //position for box
