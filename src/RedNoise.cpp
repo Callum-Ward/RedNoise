@@ -720,7 +720,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 	for (size_t i=0;i<triangles.size();i++) {
 		//if (triangles[i].colour.name == "Glass" && shadowRay) continue;
 		if (triangles[i].surfaceType == "map" && !findMapping) continue;
-		if (triangles[i].surfaceType != "map" && findMapping) continue;
+		//if (triangles[i].surfaceType != "map" && findMapping) continue;
 		glm::vec3 e0 = triangles[i].vertices[1] - triangles[i].vertices[0];
 		glm::vec3 e1 = triangles[i].vertices[2] - triangles[i].vertices[0];
 		glm::vec3 SPVector = (cameraPos - triangles[i].vertices[0]);
@@ -778,12 +778,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 		Colour colour;
 		if (theRay.intersectedTriangle.colour.name == "Reflective"){			
 			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
-			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,0);	
-		} else if (theRay.intersectedTriangle.colour.name == "ReflectiveMap"){
-			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
-			RayTriangleIntersection reflectRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1);	
-			if (reflectRay.distanceFromCamera < 1000) theRay.colour = reflectRay.colour;
-			
+			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1);	
 		} else if (theRay.intersectedTriangle.colour.name == "Glass" ){
 
 			if (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal)) > 0) { //if ray inside glass
@@ -801,7 +796,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 					if (fresnelCount < 2) {
 						reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 0.645); //reflection ratio  (transmission = 1 - reflecMul)
 						glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );
-						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++,0);	
+						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++,1);	
 						rC = reflectRay.colour;
 					}
 
@@ -819,7 +814,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 1.55); //reflection ratio  (transmission = 1 - reflecMul)
 
 				glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
-				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,0);	
+				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1);	
 			
 				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,0);
 				Colour tC = theRay.colour; //transmission colour
@@ -999,11 +994,11 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 }
 
 void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangle> &triangles,std::vector<glm::vec3> &lightSources, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
-	const float xStep = 0.05; //objects coords scaled 0-1
+	const float xStep = 0.025; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
 	const float lightIncrement = 0.25;
-	const float theta = M_PI/15 ; // 9 degree increments
+	const float theta = M_PI/16 ; // 9 degree increments
 	int sphereIndex;
 
 	
@@ -1014,7 +1009,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			//cameraPos.x = cameraPos.x -xStep;
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0].x -= xStep;
 					triangles[i].vertices[1].x -= xStep;
 					triangles[i].vertices[2].x -= xStep;
@@ -1023,7 +1018,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 		} else if (event.key.keysym.sym == SDLK_v) {
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0]  /= 1.1;
 					triangles[i].vertices[1] /= 1.1;
 					triangles[i].vertices[2] /= 1.1;
@@ -1032,7 +1027,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 		} else if (event.key.keysym.sym == SDLK_b) {
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0]  *= 1.1;
 					triangles[i].vertices[1] *= 1.1;
 					triangles[i].vertices[2] *= 1.1;
@@ -1056,7 +1051,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			//cameraPos.x = cameraPos.x +xStep;
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0].x += xStep;
 					triangles[i].vertices[1].x += xStep;
 					triangles[i].vertices[2].x += xStep;
@@ -1067,7 +1062,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			std::cout << "camera y pos before " << cameraPos[1] << "\n";
 		 	for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0].y -= xStep;
 					triangles[i].vertices[1].y -= xStep;
 					triangles[i].vertices[2].y -= xStep;
@@ -1079,7 +1074,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 		} else if (event.key.keysym.sym == SDLK_DOWN) {
 			for (size_t i = 0; i < triangles.size(); i++)
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0].y += xStep;
 					triangles[i].vertices[1].y += xStep;
 					triangles[i].vertices[2].y += xStep;
@@ -1090,7 +1085,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 		} else if (event.key.keysym.sym == SDLK_w) {
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0].z -= xStep;
 					triangles[i].vertices[1].z -= xStep;
 					triangles[i].vertices[2].z -= xStep;
@@ -1112,10 +1107,10 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 				sections = split(line, ' ');
 				if (sections.size()>0) {
 					if (sections[0] == "v") {
-						if (surfaceType == "smooth") vertexCount++;
+						if (surfaceType == "move") vertexCount++;
 					} else if (sections[0] == "vt") {
 
-					} else if (sections[0] == "f" && surfaceType == "smooth") {
+					} else if (sections[0] == "f" && surfaceType == "move") {
 
 						//std::cout << "f\n";
 						std::vector<std::string> sec1 = split(sections[1], '/');
@@ -1148,7 +1143,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 
 			std::vector<glm::vec3> vertices;
 			for (ModelTriangle triangle : triangles) {
-				if (triangle.surfaceType == "smooth") {
+				if (triangle.surfaceType == "move") {
 					for (glm::vec3 vertex : triangle.vertices) {						
 						vertices.push_back(vertex);
 					}
@@ -1177,7 +1172,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			//cameraPos.z = cameraPos.z + zStep;
 		 	for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0].z += xStep;
 					triangles[i].vertices[1].z += xStep;
 					triangles[i].vertices[2].z += xStep;
