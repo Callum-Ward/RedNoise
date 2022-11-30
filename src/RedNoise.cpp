@@ -183,7 +183,6 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle &triangle,CanvasPoint s
 	//std::cout << "getScaledRowTexture\n";
 
 	std::vector<std::vector<int>> imgLineCoords = getLineCoords(start,end);
-	
 
 	if (rowTexture.size() > imgLineCoords.size() ) { //scale down by removing pixels periodically
 		//std::cout << "size down\n";
@@ -198,27 +197,12 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle &triangle,CanvasPoint s
 
 	} else if (rowTexture.size() < imgLineCoords.size()) {//scale up by interpolating between 2 neighbouring pixels periodically
 
-		//std::cout << imgLineCoords.size()<< "\n";
-		//std::cout << rowTexture.size()<< "\n";
-		
 		int pixelsToGain = imgLineCoords.size()-rowTexture.size();
-		//std::cout << "size up scale: " << (pixelsToGain / (float)rowTexture.size()) << "\n";
 		float stepToInsert = float(rowTexture.size()) / float(pixelsToGain);
 		
 		for (int i = 0; i < pixelsToGain; i++) {
-			//std::cout << "stepToInsert: " << stepToInsert << "\n";
 			int insertIndex = round(stepToInsert*i)+i;
-			//std::cout << "insert index: " << insertIndex << "\n";
-			/* uint32_t pixelAvg;
-			if (stepToInsert == rowTexture.size()-1 || stepToInsert == 0) {
-				pixelAvg = rowTexture[stepToInsert];
-			} else {
-				pixelAvg = (rowTexture[stepToInsert-1] + rowTexture[stepToInsert+1])/2;
-				std::cout << "pixel avg used\n";
-			} */
 			uint32_t pixel = (255<<24) + (255<<16) + (255<<8) + 255; 
-			//std::cout << insertIndex << "\n";
-			//rowTexture.insert(rowTexture.begin()+insertIndex,pixel);
 			rowTexture.insert(rowTexture.begin()+insertIndex,rowTexture[insertIndex]);
 		}
 
