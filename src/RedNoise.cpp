@@ -483,17 +483,18 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	std::vector<TexturePoint> txtrPoints;
 	std::unordered_map<std::string, Colour> objColours;
 	std::string colourName;
+	std::string objectName; 
 	std::vector<std::string> sections;
 
  	/* std::ifstream ReadFile("cornell-box copy.obj");
 	std::vector<std::string> newFaces;
 	std::vector<std::string> newVertices;
-	std::string objectName; 
+
 	while (getline (ReadFile, line)) {
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 
-			if (sections[0] == "f" && objectName == "texture-box") {
+			if (sections[0] == "f" && objectName == "robot") {
 				std::vector<std::string> sec1 = split(sections[1], '/');
 				std::vector<std::string> sec2 = split(sections[2], '/');
 				std::vector<std::string> sec3 = split(sections[3], '/');
@@ -502,9 +503,9 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 					int t1Pos = std::stoi(sec1[1]) +52;
 					int t2Pos = std::stoi(sec2[1]) + 52;
 					int t3Pos = std::stoi(sec3[1]) + 52;
-					std::string vtPair = std::to_string(std::stoi(sec1[0]) + 194) + "/" + std::to_string(t1Pos);
-					std::string vtPair1 = std::to_string(std::stoi(sec2[0]) + 194 ) + "/" + std::to_string(t2Pos);
-					std::string vtPair2 = std::to_string(std::stoi(sec3[0])+ 194) + "/" + std::to_string(t3Pos);
+					std::string vtPair = std::to_string(std::stoi(sec1[0]) + 238) + "/" + std::to_string(t1Pos);
+					std::string vtPair1 = std::to_string(std::stoi(sec2[0]) + 238 ) + "/" + std::to_string(t2Pos);
+					std::string vtPair2 = std::to_string(std::stoi(sec3[0])+ 238) + "/" + std::to_string(t3Pos);
 					newFace = "f " +  vtPair + " " +   vtPair1 + " " +  vtPair2;
 				}
 				newFaces.push_back(newFace);
@@ -513,7 +514,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 				objectName = sections[1];
 				std::cout << objectName << "\n";
 			}    else if (sections[0] == "v") {
-				std::string newFace = "v " +  std::to_string(std::stof(sections[1])/250) + " " +  std::to_string(std::stof(sections[2])/250) + " " + std::to_string(std::stof(sections[3])/250) ;
+				std::string newFace = "v " +  std::to_string(std::stof(sections[1])/4) + " " +  std::to_string(std::stof(sections[2])/4) + " " + std::to_string(std::stof(sections[3])/4) ;
 				newVertices.push_back(newFace);
 			}   
 		}
@@ -536,7 +537,8 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
         myfile.close(); 
     }
 	int x;
-	std::cin >> x;   */  
+	std::cin >> x;   */
+
 
 	std::ifstream MyReadFileMtl(mtlFilename);
 	Colour colour;
@@ -559,7 +561,6 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	Colour curCol;
 	std::string surfaceType;
 	std::ifstream MyReadFile(objFilename);
-	std::string objectName;
 	glm::vec3 sphereV = glm::vec3(0,3,0);
 	while (getline (MyReadFile, line)) {
 		sections = split(line, ' ');
@@ -604,6 +605,8 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 
 				glm::vec3 normal = -glm::cross(tri.vertices[1] - tri.vertices[0], tri.vertices[2]-tri.vertices[0]);
 				tri.normal = normal;
+				
+
 				triangles.push_back(tri);
 
 			} else if (sections[0] == "usemtl") {
@@ -656,7 +659,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
 
 	//float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z; //smaller distance to vertex results in large updated depth
-	float updatedDepth = sqrt(pow(((vertexPosition  - cameraPosition)*camOrientation).z,2)); //smaller distance to vertex results in large updated depth
+	float updatedDepth = pow(((vertexPosition  - cameraPosition)*camOrientation).z,2); //smaller distance to vertex results in large updated depth
 
 	//updatedDepth = 1 / (1 + exp(updatedDepth)); //closer objects results in a smaller depth
 	CanvasPoint point = CanvasPoint(x,y,updatedDepth);
@@ -704,7 +707,6 @@ float fresnel(const glm::vec3 &I, const glm::vec3 &N, const float &ior)
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount,int findMapping) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
-
 	float bestT ;
 	float bestU ;
 	float bestV ;
@@ -761,17 +763,22 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 		}
 	}	
 
-	if (theRay.distanceFromCamera < 1000) {
-
-
-	}
-
 
 	if (shadowRay == 0 && theRay.distanceFromCamera < 1000) {
 		Colour colour;
 		if (theRay.intersectedTriangle.colour.name == "Reflective"){			
 			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
-			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1);	
+			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1);
+		} else if (theRay.intersectedTriangle.colour.name == "Metal") {
+
+			float reflecMul = 0.2;
+			glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
+			RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1);	
+			Colour tC = theRay.colour; //transmission colour
+			Colour rC = reflectRay.colour;
+			Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
+			theRay.colour = updatedColour;
+			
 		} else if (theRay.intersectedTriangle.colour.name == "Glass" ){
 
 			if (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal)) > 0) { //if ray inside glass
@@ -873,7 +880,6 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 	//const float planeScaler = 200 ;
-
 	window.clearPixels();
 	for (float x = 0; x < window.width; x++) {
 		//std::cout << "x: " << x << "\n";
@@ -881,52 +887,50 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 			
 			//std::cout << "y: " << y << "\n";
 
-			float newX = (x-(window.width/2)) / (focalL*planeScaler); 
-			float newY = (y-window.height/2) / (focalL*planeScaler);
+			float newX = (x-(window.width/2)) / (planeScaler); 
+			float newY = (y-window.height/2) / (planeScaler);
 			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
 			ray = ray * glm::inverse(cameraOrientation);
 
 			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0,0);
 			//std::cout << "made it out first ray trace\n";
-
-			if (inter.distanceFromCamera < 1000 ) { //default max distance 1000 if no object is hit by ray
-				float brightness = 0;
-			
+			if (inter.distanceFromCamera < 1000){
+				float brightness =0;
 				for (glm::vec3 lightSource : lightSources) {
 
-					glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0);
-					
-
-					if (shadowInter.distanceFromCamera > 1) {
-						//------proximity---------
-						brightness += 1 / (12* ( pow(glm::length(shadowRay),2))); 
-						//----angle of incidence--
-						float incidentDot= glm::dot(glm::normalize(inter.normal),glm::normalize(shadowRay));
-						//float incidentDot = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
-						if (incidentDot < 0) incidentDot = 0;
-						brightness += pow(incidentDot,2)/2;
+						glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
+						RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0);
 						
-						//------specular----------
-						glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(inter.normal) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(inter.normal))));
-						//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
-						float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
-						if (specular < 0) specular =0;
-						brightness += pow(specular,240);
+
+						if (shadowInter.distanceFromCamera > 1) {
+							//------proximity---------
+							brightness += 1 / (10* ( pow(glm::length(shadowRay),2))); 
+							//----angle of incidence--
+							float incidentDot= glm::dot(glm::normalize(inter.normal),glm::normalize(shadowRay));
+							//float incidentDot = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
+							if (incidentDot < 0) incidentDot = 0;
+							brightness += pow(incidentDot,2)/1.5;
+							
+							//------specular----------
+							glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(inter.normal) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(inter.normal))));
+							//glm::vec3 reflection = (-shadowRay) - (2.0f * inter.intersectedTriangle.normal * (glm::dot(-shadowRay,inter.intersectedTriangle.normal)));
+							float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
+							if (specular < 0) specular =0;
+							brightness += pow(specular,240);
+						}
 					}
-				}
-	
-				
-				brightness = brightness / lightSources.size();
-				brightness += 0.1; //universal suppliment
-				if (brightness > 1) brightness =1;
-				
-				Colour colour = inter.colour;
-				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
-				window.setPixelColour(x,y,colour_32);
-				
 		
-			}
+					
+					brightness = brightness / lightSources.size();
+					brightness += 0.1; //universal suppliment
+					if (brightness > 1) brightness =1;
+					
+					Colour colour = inter.colour;
+					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
+					window.setPixelColour(x,y,colour_32);
+
+				
+			} 
 			//std::cout << "made it end of drawRayTrace trace\n";
 		}
 	}
@@ -969,12 +973,8 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 				//std::cout << "texture found in drawRasterisedScene\n";
 				v[i].texturePoint = triangle.texturePoints[i] ; //transfer texture point from ModelTriangle array to CanvasPoint 
 			}	
-			//std::cout << "New z: " << v[i].depth << "\n";
 		}
-		//if (v[0].x < 0 && v[1].x < 0 && v[2].x < 0) continue; //early validation to save time processing objects outside the image plane
-		//if (v[0].y < 0 && v[1].y < 0 && v[2].y < 0) continue;
-		//if (v[0].x > window.width && v[1].x > window.width && v[2].x < window.width) continue;
-		//if (v[0].y > window.height && v[1].y > window.height && v[2].x < window.height) continue;
+
 		CanvasTriangle tri = CanvasTriangle(v[0],v[1],v[2]);
 		if (triangle.isTexture) {
 			//std::cout << "texture found in drawRasterisedScene1\n";
@@ -987,27 +987,30 @@ void drawRasterisedScene(DrawingWindow &window,std::vector<ModelTriangle> &trian
 }
 
 void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangle> &triangles,std::vector<glm::vec3> &lightSources, glm::vec3 &cameraPos,glm::mat3 &cameraOrientation, int &renderTypeIndex) {
-	const float xStep = 0.025; //objects coords scaled 0-1
+	const float xStep = 0.0125; //objects coords scaled 0-1
 	const float yStep = 0.05;
 	const float zStep = 0.05;
 	const float lightIncrement = 0.25;
-	const float theta = M_PI/16 ; // 9 degree increments
+	const float theta = M_PI/32 ; // 9 degree increments
 	int sphereIndex;
-
+	int moving = 0;
 	
 	
 	if (event.type == SDL_KEYDOWN) {
 		if (event.key.keysym.sym == SDLK_LEFT) { 
 			std::cout << "LEFT" << std::endl;
-			//cameraPos.x = cameraPos.x -xStep;
-			for (size_t i = 0; i < triangles.size(); i++) 
-			{
-				if (triangles[i].surfaceType == "move") {
-					triangles[i].vertices[0].x -= xStep;
-					triangles[i].vertices[1].x -= xStep;
-					triangles[i].vertices[2].x -= xStep;
+			
+			if (moving) {
+				for (size_t i = 0; i < triangles.size(); i++) 
+				{
+					if (triangles[i].surfaceType == "move") {
+						triangles[i].vertices[0].x -= xStep;
+						triangles[i].vertices[1].x -= xStep;
+						triangles[i].vertices[2].x -= xStep;
+					}
 				}
-			}
+			} else cameraPos.x = cameraPos.x -xStep;
+
 		} else if (event.key.keysym.sym == SDLK_v) {
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
@@ -1034,59 +1037,75 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 			);
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
-				if (triangles[i].surfaceType == "smooth") {
+				if (triangles[i].surfaceType == "move") {
 					triangles[i].vertices[0] =  triangles[i].vertices[0] * countClock_rot;
 					triangles[i].vertices[1] =  triangles[i].vertices[1] * countClock_rot;
 					triangles[i].vertices[2] =  triangles[i].vertices[2] * countClock_rot;
 				}
 			}
-		} else if (event.key.keysym.sym == SDLK_RIGHT) {
-			//cameraPos.x = cameraPos.x +xStep;
+		} else if (event.key.keysym.sym == SDLK_m) {
+			glm::mat3 clock_rot = glm::mat3(
+ 			  	1, 0, 0, // first column (not row!)
+   				0, cos(-theta), sin(-theta), // second column
+   				0, -sin(-theta), cos(-theta)  // third column
+			);
 			for (size_t i = 0; i < triangles.size(); i++) 
 			{
 				if (triangles[i].surfaceType == "move") {
-					triangles[i].vertices[0].x += xStep;
-					triangles[i].vertices[1].x += xStep;
-					triangles[i].vertices[2].x += xStep;
+					triangles[i].vertices[0] =  triangles[i].vertices[0] * clock_rot;
+					triangles[i].vertices[1] =  triangles[i].vertices[1] * clock_rot;
+					triangles[i].vertices[2] =  triangles[i].vertices[2] * clock_rot;
 				}
 			}
+		} else if (event.key.keysym.sym == SDLK_RIGHT) {
+			if (moving) {
+				for (size_t i = 0; i < triangles.size(); i++) 
+				{
+					if (triangles[i].surfaceType == "move") {
+						triangles[i].vertices[0].x += xStep;
+						triangles[i].vertices[1].x += xStep;
+						triangles[i].vertices[2].x += xStep;
+					}
+				}
+			} else cameraPos.x = cameraPos.x +xStep;
 			std::cout << "RIGHT" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_UP) {
-			std::cout << "camera y pos before " << cameraPos[1] << "\n";
-		 	for (size_t i = 0; i < triangles.size(); i++) 
-			{
-				if (triangles[i].surfaceType == "move") {
-					triangles[i].vertices[0].y -= xStep;
-					triangles[i].vertices[1].y -= xStep;
-					triangles[i].vertices[2].y -= xStep;
+			if (moving) {
+				for (size_t i = 0; i < triangles.size(); i++) 
+				{
+					if (triangles[i].surfaceType == "move") {
+						triangles[i].vertices[0].y -= xStep;
+						triangles[i].vertices[1].y -= xStep;
+						triangles[i].vertices[2].y -= xStep;
+					}
 				}
-			}
-			//cameraPos.y = cameraPos.y-yStep; //y grows down
-			std::cout << "camera y pos after " << cameraPos[1] << "\n";
-			std::cout << "UP" << std::endl;
+			} else cameraPos.y = cameraPos.y -xStep;
+			
 		} else if (event.key.keysym.sym == SDLK_DOWN) {
-			for (size_t i = 0; i < triangles.size(); i++)
-			{
-				if (triangles[i].surfaceType == "move") {
-					triangles[i].vertices[0].y += xStep;
-					triangles[i].vertices[1].y += xStep;
-					triangles[i].vertices[2].y += xStep;
+			if (moving) {
+				for (size_t i = 0; i < triangles.size(); i++) 
+				{
+					if (triangles[i].surfaceType == "move") {
+						triangles[i].vertices[0].y += xStep;
+						triangles[i].vertices[1].y += xStep;
+						triangles[i].vertices[2].y += xStep;
+					}
 				}
-			} 
-			//cameraPos.y = cameraPos.y +yStep;
+			} else cameraPos.y = cameraPos.y +xStep;
+
 			std::cout << "DOWN" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_w) {
-			for (size_t i = 0; i < triangles.size(); i++) 
-			{
-				if (triangles[i].surfaceType == "move") {
-					triangles[i].vertices[0].z -= xStep;
-					triangles[i].vertices[1].z -= xStep;
-					triangles[i].vertices[2].z -= xStep;
+			if (moving) {
+				for (size_t i = 0; i < triangles.size(); i++) 
+				{
+					if (triangles[i].surfaceType == "move") {
+						triangles[i].vertices[0].z -= xStep;
+						triangles[i].vertices[1].z -= xStep;
+						triangles[i].vertices[2].z -= xStep;
+					}
 				}
-			}
-			//cameraPos.z = cameraPos.z - zStep;
-			std::cout << "z " << cameraPos.z << std::endl;
-			std::cout << "FORWARD" << std::endl;
+			} else cameraPos.z = cameraPos.z -xStep;
+			
 		} else if (event.key.keysym.sym == SDLK_e) {
 			std::string line;
 			std::vector<std::string> sections;
@@ -1163,14 +1182,16 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 		
 		} else if (event.key.keysym.sym == SDLK_s) {
 			//cameraPos.z = cameraPos.z + zStep;
-		 	for (size_t i = 0; i < triangles.size(); i++) 
-			{
-				if (triangles[i].surfaceType == "move") {
-					triangles[i].vertices[0].z += xStep;
-					triangles[i].vertices[1].z += xStep;
-					triangles[i].vertices[2].z += xStep;
+			if (moving) {
+				for (size_t i = 0; i < triangles.size(); i++) 
+				{
+					if (triangles[i].surfaceType == "move") {
+						triangles[i].vertices[0].z += xStep;
+						triangles[i].vertices[1].z += xStep;
+						triangles[i].vertices[2].z += xStep;
+					}
 				}
-			}
+			} else cameraPos.z = cameraPos.z +xStep;
 			std::cout << "BACKWARD" << std::endl;
 		} else if (event.key.keysym.sym == SDLK_d) {	
 			glm::mat3 countClock_rot = glm::mat3(
