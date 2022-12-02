@@ -18,10 +18,10 @@
 #include <algorithm>
 #include <unordered_map>
 
-#define WIDTH 960
-#define HEIGHT 720
-//#define WIDTH 640
-//#define HEIGHT 480
+//#define WIDTH 960
+//#define HEIGHT 720
+#define WIDTH 640
+#define HEIGHT 480
 //#define WIDTH 320
 //#define HEIGHT 240
 
@@ -211,37 +211,6 @@ std::vector<uint32_t> getScaledRowTexture(CanvasTriangle &triangle,CanvasPoint s
 	return rowTexture;
 }
 
-TexturePoint getTexturePoint(CanvasTriangle triangle,CanvasPoint point,int vertex) {
-	//interpolate texture point along edge between vertices
-	TexturePoint textureP;
-	CanvasPoint bigV,smallV; //bigV refers to the vertex with larger y, ratio based off y 
-
-	if (vertex == 0) { //point between v0, v1
-		bigV = triangle.v1();
-		smallV = triangle.v0();
-	} else if (vertex == 1) {//point between v1, v2
-		bigV = triangle.v2();
-		smallV = triangle.v1();
-	} else {//point between v0, v2
-		bigV = triangle.v2();
-		smallV = triangle.v0();
-	}
-
-	int yLength = bigV.y -smallV.y;
-	float ratio = (point.y - smallV.y) / yLength;
-
-	if (smallV.y == bigV.y) { //edge case when both y are the same
-		if(vertex == 0 || vertex == 1) ratio = 0; //favour smaller y vertices when choosing starting point of line
-		if (vertex ==2) ratio =1; //favour v2 when choosing a line endpoint
-	} 
-
-	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*ratio);
-	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*ratio);
-
-	textureP = TexturePoint(xTexture,yTexture);
-	return textureP;
-}
-
 TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,int vertex) {
 	//interpolate texture point along edge between vertices
 	TexturePoint textureP;
@@ -315,79 +284,6 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 
 	textureP = TexturePoint(xTexture,round(c));
 	return textureP;
-}
-
-void drawTexturedTriangle(DrawingWindow &window, CanvasTriangle triangle, TextureMap texture) {
-	if (triangle.v0().y > triangle.v1().y) {
-		std::swap(triangle.v0().y,triangle.v1().y); //sorting vertices in order of y coord smallest to largest
-		std::swap(triangle.v0().x,triangle.v1().x); 
-		std::swap(triangle.v0().texturePoint,triangle.v1().texturePoint); 
-	}
-	if (triangle.v0().y > triangle.v2().y) {
-		std::swap(triangle.v0().y,triangle.v2().y);
-		std::swap(triangle.v0().x,triangle.v2().x);
-		std::swap(triangle.v0().texturePoint,triangle.v2().texturePoint);
-		std::swap(triangle.v2().y,triangle.v1().y);
-		std::swap(triangle.v2().x,triangle.v1().x);
-		std::swap(triangle.v2().texturePoint,triangle.v1().texturePoint);
-	} else if (triangle.v1().y > triangle.v2().y) {
-		std::swap(triangle.v1().y,triangle.v2().y);
-		std::swap(triangle.v1().x,triangle.v2().x);
-		std::swap(triangle.v1().texturePoint,triangle.v2().texturePoint);
-	}
-
-	float x[3] = {triangle.v0().x,triangle.v1().x,triangle.v2().x};
-	float y[3] = {triangle.v0().y,triangle.v1().y,triangle.v2().y};
-	float xStepSize[3],yStepSize[3];
-	CanvasPoint lineStart;
-	CanvasPoint lineEnd;	
-
-	for (int c=0;c<2;++c){
-		xStepSize[c] = (x[c+1] - x[0])/ fmax(abs(x[c+1] - x[0]),abs(y[c+1] - y[0])); //determine step sizes for v0-v1 and v0,v2 
-		yStepSize[c] = (y[c+1] - y[0]) / fmax(abs(y[c+1] - y[0]),abs(x[c+1] - x[0]));
-	}
-	xStepSize[2] = (x[2]-x[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1])); //determine step size from v1-v2
-	yStepSize[2] = (y[2]-y[1]) / fmax(abs(x[2] - x[1]),abs(y[2] - y[1]));
-	float curX[2] = {x[0],x[0]}; //init with v0 as starting point
-	float curY[2] = {y[0],y[0]};
-	int fillStage =0;
-
-	for (size_t row = y[0]; row < y[2]; row++){ //loop through y values from v0 to v2
-
-		if (row == y[1]){ //if v0-v1 is filled with lines switch step size to v1-v2
-			fillStage++;
-			xStepSize[0] = xStepSize[2];
-			yStepSize[0] = yStepSize[2];
-			curX[0] = x[1];
-			curY[0] = y[1];		
-		}
-		for (size_t i = 0; i < 2; i++){ //increment x values on both lines till one step before y increment
-			if (yStepSize[i]>0) {
-				while(round(curY[i]+ yStepSize[i]) == row ){	
-					if (round(curX[i]) == x[2] && round(curY[i]) == y[2]) break;
-					curX[i]+=xStepSize[i];
-					curY[i]+=yStepSize[i];
-				}
-			}
-		}
-
-		lineStart = CanvasPoint(round(curX[0]),row); //create canvas point for drawing line then add the approparie texture point from ratio along line
-		lineStart.texturePoint = getTexturePoint(triangle,lineStart,fillStage); 
-
-		lineEnd = CanvasPoint(round(curX[1]),row);
-		lineEnd.texturePoint = getTexturePoint(triangle,lineEnd,2);	
-	
-		//std::vector<uint32_t> rowTexture = getScaledRowTexture(triangle,lineStart,lineEnd,texture); //get the exact number of pixels required to draw in image by scaling fetched texture
-		//drawLineTextured(window, lineStart,lineEnd,rowTexture); //draw horizontal line before y incrmement
-
-		curX[0] += xStepSize[0];
-		curY[0] += yStepSize[0];
-		curX[1]  += xStepSize[1];
-		curY[1] += yStepSize[1];
-	}
-	//drawLine(window, CanvasPoint(x[2],y[2]),CanvasPoint(x[2],y[2]),colour);
-	drawStrokedTriangle(window,triangle,Colour(255,255,255));
-	//window.setPixelColour(round(x),round(y), colour_32);
 }
 
 void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour &colour,std::vector<std::vector<float>> &depthBuffer) {
@@ -659,7 +555,7 @@ CanvasPoint getCanvasIntersectionPoint(DrawingWindow &window, glm::vec3 cameraPo
 	int y = round(planeScaler * focalLength * ((vertexPosition  - cameraPosition)*camOrientation).y / ((vertexPosition  - cameraPosition)*camOrientation).z + (window.height/2));
 
 	//float updatedDepth = 1 / ((vertexPosition  - cameraPosition)*camOrientation).z; //smaller distance to vertex results in large updated depth
-	float updatedDepth = pow(((vertexPosition  - cameraPosition)*camOrientation).z,2); //smaller distance to vertex results in large updated depth
+	float updatedDepth = sqrt(pow(((vertexPosition  - cameraPosition)*camOrientation).z,2)); //smaller distance to vertex results in large updated depth
 
 	//updatedDepth = 1 / (1 + exp(updatedDepth)); //closer objects results in a smaller depth
 	CanvasPoint point = CanvasPoint(x,y,updatedDepth);
@@ -941,6 +837,7 @@ void drawWireframeScene(DrawingWindow &window,std::vector<ModelTriangle> &triang
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 	window.clearPixels();
 	for (ModelTriangle triangle : triangles) {
+		if (triangle.surfaceType == "map") continue;
 		CanvasPoint v[3];
 		int behind = 0;
 		for (size_t i = 0; i <3; i++){
@@ -991,7 +888,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 	const float yStep = 0.05;
 	const float zStep = 0.05;
 	const float lightIncrement = 0.25;
-	const float theta = M_PI/32 ; // 9 degree increments
+	const float theta = M_PI/36 ; // 9 degree increments
 	int sphereIndex;
 	int moving = 0;
 	
@@ -1254,17 +1151,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 		
 			std::cout << "ROTATE Y COUNTER-CLOCKWISE" << std::endl;
 
-		} else if (event.key.keysym.sym == SDLK_t) {
 
-			CanvasPoint v0 = CanvasPoint(160,10);
-			v0.texturePoint = TexturePoint(195,5);
-			CanvasPoint v1 = CanvasPoint(300,230);
-			v1.texturePoint = TexturePoint(395,380);
-			CanvasPoint v2 = CanvasPoint(10,150);
-			v2.texturePoint = TexturePoint(65,330);
-			std::cout << "t" << std::endl;
-			CanvasTriangle triangle = CanvasTriangle(v0,v1,v2);
-			drawTexturedTriangle(window,triangle,TextureMap("texture.ppm"));
 
 		} else if (event.key.keysym.sym == SDLK_r) {
 
@@ -1374,13 +1261,35 @@ int main(int argc, char *argv[]) {
 		if (window.pollForInputEvents(event)) handleEvent(event, window,triangles,lightSources ,cameraPos, camOrientation,renderTypeIndex);
 		//drawRayTrace(window, triangles, cameraPos,camOrientation);
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
-		if (renderTypeIndex == 0) {
+		if (renderTypeIndex == 0) {		
 			drawWireframeScene(window,triangles,cameraPos,camOrientation);
 		} else if(renderTypeIndex == 1) {
 			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
+			for (int i = 73; i < 146; i++){
+				drawRasterisedScene(window,triangles,cameraPos,camOrientation);
+				std::string filename = "";
+				int zeros = 5- int(std::to_string(i).size());
+
+				for (int i = 0; i < zeros;i++) filename+="0"; 
+				filename += std::to_string(i);
+				window.savePPM("video/" + filename);
+				const float theta = M_PI/36 ; // 9 degree increments
+				glm::mat3 clock_rot = glm::mat3(
+					cos(-theta), 0, -sin(-theta), // first column (not row!)
+					0, 1, 0, // second column
+					sin(-theta),0, cos(-theta)  // third column
+				);
+				cameraPos = cameraPos * clock_rot;
+				lookAt(camOrientation,cameraPos, glm::vec3(0,0,0));
+				window.renderFrame();
+			}
+			int x;
+			std::cin >> x;
+			
 		} else if (renderTypeIndex == 2) {
 			
 			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation);
+
 			/*window.renderFrame();
 			std::cout<< "Ray trace scene rendered! Enter Y to continue...\n";
 			char ok;
@@ -1391,6 +1300,7 @@ int main(int argc, char *argv[]) {
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		
 		window.renderFrame();
+		
 		/* std::cout << "Render complete!\n";
 		int x;
 		std::cin >> x; */
