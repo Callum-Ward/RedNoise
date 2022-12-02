@@ -600,7 +600,7 @@ float fresnel(const glm::vec3 &I, const glm::vec3 &N, const float &ior)
     // kt = 1 - kr;
 } 
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount,int findMapping) {
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount,int findMapping,int phong) {
 
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 	float bestT ;
@@ -630,46 +630,57 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float bestT = t;
 				float bestU = u;
 				float bestV = v;
+				if (phong) {
+					if (theRay.intersectedTriangle.isTexture==1 && theRay.intersectedTriangle.surfaceType == "flat" || theRay.intersectedTriangle.surfaceType == "map") {
+						float w = 1 - (bestU+ bestV);
+						float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
+						float yTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].y)+(bestU* theRay.intersectedTriangle.texturePoints[1].y)+(bestV*theRay.intersectedTriangle.texturePoints[2].y);
+						pixel = theRay.intersectedTriangle.textureMap.pixels[theRay.intersectedTriangle.textureMap.width*(round(yTxtPoint)) + (round(xTxtPoint))];
+						theRay.colour = Colour(((pixel>>16) & 255), ((pixel>>8)&255), (pixel&255));
+					} else theRay.colour = theRay.intersectedTriangle.colour;
 
-				if (theRay.intersectedTriangle.isTexture==1 && theRay.intersectedTriangle.surfaceType == "flat" || theRay.intersectedTriangle.surfaceType == "map") {
-					float w = 1 - (bestU+ bestV);
-					float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
-					float yTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].y)+(bestU* theRay.intersectedTriangle.texturePoints[1].y)+(bestV*theRay.intersectedTriangle.texturePoints[2].y);
-					pixel = theRay.intersectedTriangle.textureMap.pixels[theRay.intersectedTriangle.textureMap.width*(round(yTxtPoint)) + (round(xTxtPoint))];
-					theRay.colour = Colour(((pixel>>16) & 255), ((pixel>>8)&255), (pixel&255));
-				} else theRay.colour = theRay.intersectedTriangle.colour;
-
-			 	if (theRay.intersectedTriangle.surfaceType == "flat") {
-					theRay.normal = theRay.intersectedTriangle.normal;
-				} else if (theRay.intersectedTriangle.isTexture && theRay.intersectedTriangle.surfaceType == "smooth") {
-					float w = 1 - (bestU+ bestV);
-					float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
-					float yTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].y)+(bestU* theRay.intersectedTriangle.texturePoints[1].y)+(bestV*theRay.intersectedTriangle.texturePoints[2].y);
-					pixel = theRay.intersectedTriangle.textureMap.pixels[theRay.intersectedTriangle.textureMap.width*(round(yTxtPoint)) + (round(xTxtPoint))];
-					theRay.normal = glm::vec3( float((pixel>>16) & 255) / 255, float((pixel>>8)&255)/255,float(pixel&255)/255 );
-					theRay.colour = Colour(0,255,0);
+					if (theRay.intersectedTriangle.surfaceType == "flat") {
+						theRay.normal = theRay.intersectedTriangle.normal;
+					} else if (theRay.intersectedTriangle.isTexture && theRay.intersectedTriangle.surfaceType == "smooth") {
+						float w = 1 - (bestU+ bestV);
+						float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
+						float yTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].y)+(bestU* theRay.intersectedTriangle.texturePoints[1].y)+(bestV*theRay.intersectedTriangle.texturePoints[2].y);
+						pixel = theRay.intersectedTriangle.textureMap.pixels[theRay.intersectedTriangle.textureMap.width*(round(yTxtPoint)) + (round(xTxtPoint))];
+						theRay.normal = glm::vec3( float((pixel>>16) & 255) / 255, float((pixel>>8)&255)/255,float(pixel&255)/255 );
+						theRay.colour = Colour(0,255,0);
+					} else {
+						float w = 1 - (bestU+ bestV);
+						theRay.normal = glm::normalize((w * theRay.intersectedTriangle.normals[0])+(bestU* theRay.intersectedTriangle.normals[1])+(bestV* theRay.intersectedTriangle.normals[2]));
+					} 
 				} else {
 					float w = 1 - (bestU+ bestV);
-					theRay.normal = glm::normalize((w * theRay.intersectedTriangle.normals[0])+(bestU* theRay.intersectedTriangle.normals[1])+(bestV* theRay.intersectedTriangle.normals[2]));
-				} 
-						/* std::cout << "new normal: " << theRay.normal[0] <<  ", " << theRay.normal[1] <<  ", " << theRay.normal[2] << "\n";
-						std::cout << "\n"; */
+					uint32_t v1Col = (255 << 24) + (theRay.intersectedTriangle.colours[0].red << 16) + (theRay.intersectedTriangle.colours[0].green << 8) + theRay.intersectedTriangle.colours[0].blue;
+					uint32_t v2Col = (255 << 24) + (theRay.intersectedTriangle.colours[1].red << 16) + (theRay.intersectedTriangle.colours[1].green << 8) + theRay.intersectedTriangle.colours[1].blue;
+					uint32_t v3Col = (255 << 24) + (theRay.intersectedTriangle.colours[2].red << 16) + (theRay.intersectedTriangle.colours[2].green << 8) + theRay.intersectedTriangle.colours[2].blue;
+					uint32_t pixel = uint32_t(w*int(v1Col) + bestU*int(v2Col) + bestV*int(v3Col));
+					Colour c1 = theRay.intersectedTriangle.colours[0];
+					Colour c2 = theRay.intersectedTriangle.colours[1];
+					Colour c3 = theRay.intersectedTriangle.colours[2];
+					Colour newColour = Colour(c1.red*w+c2.red*bestU+c3.red*bestV,c1.green*w+c2.green*bestU+c3.green*bestV,c1.blue*w+c2.blue*bestU+c3.blue*bestV); 
+					theRay.colour = newColour;
+				}
+				
 
 			}
 		}
 	}	
 
 
-	if (shadowRay == 0 && theRay.distanceFromCamera < 1000) {
+	if (shadowRay == 0 && theRay.distanceFromCamera < 1000 && phong) {
 		Colour colour;
 		if (theRay.intersectedTriangle.colour.name == "Reflective"){			
 			glm::vec3 reflection = glm::normalize(ray) - (2.0f * (glm::normalize(theRay.normal)) * (glm::dot(glm::normalize(ray),glm::normalize(theRay.normal))));
-			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1);
+			theRay = getClosestIntersection(reflection,theRay.intersectionPoint,triangles,0,0,1,1);
 		} else if (theRay.intersectedTriangle.colour.name == "Metal") {
 
 			float reflecMul = 0.2;
 			glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
-			RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1);	
+			RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1,1);	
 			Colour tC = theRay.colour; //transmission colour
 			Colour rC = reflectRay.colour;
 			Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
@@ -684,7 +695,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				
 				if (refractedRay == glm::vec3(0,0,0)){ //total internal reflection
 					glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );	
-					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount,0);
+					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount,0,1);
 				} else {
 
 					float reflecMul = 0;
@@ -692,12 +703,12 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 					if (fresnelCount < 2) {
 						reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 0.645); //reflection ratio  (transmission = 1 - reflecMul)
 						glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(-glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );
-						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++,1);	
+						RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount++,1,1);	
 						rC = reflectRay.colour;
 					}
 
 
-					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount,0);
+					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount,0,1);
 					Colour tC = theRay.colour; //transmission colour
 					Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
 					theRay.colour = updatedColour;
@@ -710,9 +721,9 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float reflecMul = fresnel(glm::normalize(ray), glm::normalize(theRay.normal), 1.55); //reflection ratio  (transmission = 1 - reflecMul)
 
 				glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
-				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1);	
+				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1,1);	
 			
-				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,0);
+				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,0,1);
 				Colour tC = theRay.colour; //transmission colour
 				Colour rC = reflectRay.colour;
 				Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
@@ -772,30 +783,80 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 
 }
 
-void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, std::vector<glm::vec3> &lightSources,glm::vec3 cameraPos, glm::mat3 cameraOrientation ) {
+void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, std::vector<glm::vec3> &lightSources,glm::vec3 cameraPos, glm::mat3 cameraOrientation,int phong ) {
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
 	//const float planeScaler = 200 ;
 	window.clearPixels();
-	for (float x = 0; x < window.width; x++) {
-		//std::cout << "x: " << x << "\n";
-		for (float y = 0; y < window.height; y++){
-			
-			//std::cout << "y: " << y << "\n";
-
-			float newX = (x-(window.width/2)) / (planeScaler); 
-			float newY = (y-window.height/2) / (planeScaler);
-			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
-			ray = ray * glm::inverse(cameraOrientation);
-
-			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0,0);
-			//std::cout << "made it out first ray trace\n";
-			if (inter.distanceFromCamera < 1000){
+	if (!phong) {
+		for (size_t trianglePos = 0; trianglePos < triangles.size(); trianglePos++) {
+			for (size_t vertexPos = 0; vertexPos < 3;vertexPos++){
 				float brightness =0;
 				for (glm::vec3 lightSource : lightSources) {
 
+					glm::vec3 shadowRay = (lightSource - triangles[trianglePos].vertices[vertexPos]); // / rayInvScalar;
+					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,triangles[trianglePos].vertices[vertexPos],triangles,1,0,0,0);
+
+					if (shadowInter.distanceFromCamera > 1) {
+						//------proximity---------
+						brightness += 1 / (10* ( pow(glm::length(shadowRay),2))); 
+						//----angle of incidence--
+						float incidentDot;
+						if (triangles[trianglePos].surfaceType == "smooth"){
+							incidentDot= glm::dot(glm::normalize(triangles[trianglePos].normals[vertexPos]) ,glm::normalize(shadowRay));
+						}else {
+							incidentDot= glm::dot(glm::normalize(triangles[trianglePos].normal),glm::normalize(shadowRay));
+						}
+						if (incidentDot < 0) incidentDot = 0;
+						brightness += pow(incidentDot,2)/1.5;
+						
+						//------specular----------
+						glm::vec3 reflection;
+						if (triangles[trianglePos].surfaceType == "smooth"){
+							glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(triangles[trianglePos].normals[vertexPos]) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(triangles[trianglePos].normals[vertexPos]))));
+						} else {
+							glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(triangles[trianglePos].normal) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(triangles[trianglePos].normal))));
+						}
+						float specular = glm::dot(glm::normalize(reflection),glm::normalize(triangles[trianglePos].vertices[vertexPos]-cameraPos));
+						if (specular < 0) specular =0;
+						brightness += pow(specular,200);
+					}
+				}
+				brightness = brightness / lightSources.size();
+				brightness += 0.1; //universal suppliment
+				if (brightness > 1) brightness =1;
+				Colour newColour;
+				if (triangles[trianglePos].isTexture) {
+					uint32_t pixel = triangles[trianglePos].textureMap.pixels[triangles[trianglePos].textureMap.width * triangles[trianglePos].texturePoints[vertexPos].y + triangles[trianglePos].texturePoints[vertexPos].x];
+					newColour = Colour(((pixel>>16) & 255), ((pixel>>8)&255), (pixel&255));
+				} else {
+					newColour = Colour(triangles[trianglePos].colour.red*brightness,triangles[trianglePos].colour.green*brightness,triangles[trianglePos].colour.blue*brightness);
+				}
+				triangles[trianglePos].colours[vertexPos] = newColour;
+			}
+		}
+	}
+	
+	for (float x = 0; x < window.width; x++) {
+		//std::cout << "x: " << x << "\n";
+		for (float y = 0; y < window.height; y++){
+		
+			//std::cout << "y: " << y << "\n";
+			float newX = (x-(window.width/2)) / (planeScaler* focalL); 
+			float newY = (y-window.height/2) / (planeScaler*focalL);
+			glm::vec3 ray = glm::vec3(-newX,-newY,-1.0f); //ray from camera to object
+			ray = ray * glm::inverse(cameraOrientation);
+
+			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0,0,phong);
+			//std::cout << "made it out first ray trace\n";
+			if (inter.distanceFromCamera < 1000){
+
+				if (phong) {
+					float brightness =0;
+					for (glm::vec3 lightSource : lightSources) {
+
 						glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-						RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0);
+						RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0,1);
 						
 
 						if (shadowInter.distanceFromCamera > 1) {
@@ -824,6 +885,12 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 					Colour colour = inter.colour;
 					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
 					window.setPixelColour(x,y,colour_32);
+				} else {
+					Colour colour = inter.colour;
+					uint32_t colour_32 = (255 << 24) + (int(round(colour.red)) << 16) + (int(round(colour.green)) << 8) + int(round(colour.blue));
+					window.setPixelColour(x,y,colour_32);
+				}
+
 
 				
 			} 
@@ -1288,7 +1355,8 @@ int main(int argc, char *argv[]) {
 			
 		} else if (renderTypeIndex == 2) {
 			
-			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation);
+
+			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
 
 			/*window.renderFrame();
 			std::cout<< "Ray trace scene rendered! Enter Y to continue...\n";
@@ -1296,7 +1364,6 @@ int main(int argc, char *argv[]) {
 			std::cin >> ok;
 			renderTypeIndex = 0; */
 		}
-
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		
 		window.renderFrame();

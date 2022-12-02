@@ -15,6 +15,7 @@ struct ModelTriangle {
 	Colour colour{};
 	glm::vec3 normal{};
 	std::string surfaceType;
+	std::array<Colour, 3> colours;
 	std::array<glm::vec3, 3> normals{};
 
 	ModelTriangle();
