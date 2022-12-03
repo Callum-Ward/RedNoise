@@ -601,7 +601,6 @@ float fresnel(const glm::vec3 &I, const glm::vec3 &N, const float &ior)
 } 
 
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPos,std::vector<ModelTriangle> &triangles, int shadowRay,int fresnelCount,int findMapping,int phong) {
-
 	RayTriangleIntersection theRay =  RayTriangleIntersection();
 	float bestT ;
 	float bestU ;
@@ -630,7 +629,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float bestT = t;
 				float bestU = u;
 				float bestV = v;
-				if (phong) {
+				if (phong && !shadowRay) {
 					if (theRay.intersectedTriangle.isTexture==1 && theRay.intersectedTriangle.surfaceType == "flat" || theRay.intersectedTriangle.surfaceType == "map") {
 						float w = 1 - (bestU+ bestV);
 						float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
@@ -652,7 +651,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 						float w = 1 - (bestU+ bestV);
 						theRay.normal = glm::normalize((w * theRay.intersectedTriangle.normals[0])+(bestU* theRay.intersectedTriangle.normals[1])+(bestV* theRay.intersectedTriangle.normals[2]));
 					} 
-				} else {
+				} else if (!shadowRay) {
 					float w = 1 - (bestU+ bestV);
 					uint32_t v1Col = (255 << 24) + (theRay.intersectedTriangle.colours[0].red << 16) + (theRay.intersectedTriangle.colours[0].green << 8) + theRay.intersectedTriangle.colours[0].blue;
 					uint32_t v2Col = (255 << 24) + (theRay.intersectedTriangle.colours[1].red << 16) + (theRay.intersectedTriangle.colours[1].green << 8) + theRay.intersectedTriangle.colours[1].blue;
@@ -669,7 +668,6 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 			}
 		}
 	}	
-
 
 	if (shadowRay == 0 && theRay.distanceFromCamera < 1000 && phong) {
 		Colour colour;
@@ -756,14 +754,13 @@ void lookAt(glm::mat3 &cameraOrientation,glm::vec3 cameraPos ,glm::vec3 point) {
 	glm::vec3 forward = cameraPos-point;
 	forward = glm::normalize(forward);
 	//std::cout << "foward: " << forward.x << "," << forward.y << "," << forward.z << "\n";
-  	glm::vec3 right = glm::cross(glm::vec3(0,1,0),forward); //CP vertical with forward
+  	glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0,1,0),forward)); //CP vertical with forward
 
   	//glm::vec3 right = glm::vec3(1,0,0); //CP vertical with forward
 	//std::cout << "right: " << right.x << "," << right.y << "," << right.z << "\n";
-  	glm::vec3 up = glm::vec3(0,1,0); //CP vertical with forward
+  	glm::vec3 up = glm::normalize(glm::cross(forward,right)); //CP vertical with forward
 	//glm::vec3 up = glm::cross(forward,right);
 	//std::cout << "up: " << up.x << "," << up.y << "," << up.z << "\n";
-
 
 	cameraOrientation = glm::mat3(right,up,forward);
 
@@ -786,20 +783,19 @@ void orbit(glm::vec3 &cameraPos, glm::mat3 &cameraOrientation, glm::vec3 &lookAt
 void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, std::vector<glm::vec3> &lightSources,glm::vec3 cameraPos, glm::mat3 cameraOrientation,int phong ) {
 	const float focalL = 2;
 	const float planeScaler = HEIGHT/focalL + HEIGHT/3;
-	//const float planeScaler = 200 ;
+	float largestBright = 0;
 	window.clearPixels();
 	if (!phong) {
 		for (size_t trianglePos = 0; trianglePos < triangles.size(); trianglePos++) {
 			for (size_t vertexPos = 0; vertexPos < 3;vertexPos++){
 				float brightness =0;
 				for (glm::vec3 lightSource : lightSources) {
-
 					glm::vec3 shadowRay = (lightSource - triangles[trianglePos].vertices[vertexPos]); // / rayInvScalar;
-					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,triangles[trianglePos].vertices[vertexPos],triangles,1,0,0,0);
+					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,triangles[trianglePos].vertices[vertexPos],triangles,1,0,0,1);
 
 					if (shadowInter.distanceFromCamera > 1) {
 						//------proximity---------
-						brightness += 1 / (10* ( pow(glm::length(shadowRay),2))); 
+						brightness += 1 / (20* ( pow(glm::length(shadowRay),2))); 
 						//----angle of incidence--
 						float incidentDot;
 						if (triangles[trianglePos].surfaceType == "smooth"){
@@ -808,21 +804,17 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 							incidentDot= glm::dot(glm::normalize(triangles[trianglePos].normal),glm::normalize(shadowRay));
 						}
 						if (incidentDot < 0) incidentDot = 0;
-						brightness += pow(incidentDot,2)/1.5;
-						
+						brightness += pow(incidentDot,2)/1.5;	
 						//------specular----------
-						glm::vec3 reflection;
-						if (triangles[trianglePos].surfaceType == "smooth"){
-							glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(triangles[trianglePos].normals[vertexPos]) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(triangles[trianglePos].normals[vertexPos]))));
-						} else {
-							glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(triangles[trianglePos].normal) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(triangles[trianglePos].normal))));
-						}
-						float specular = glm::dot(glm::normalize(reflection),glm::normalize(triangles[trianglePos].vertices[vertexPos]-cameraPos));
+						glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(triangles[trianglePos].normal) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(triangles[trianglePos].normal))));
+						glm::vec3 ray = glm::normalize(cameraPos) - glm::normalize(triangles[trianglePos].vertices[vertexPos]);
+						float specular = glm::dot(glm::normalize(reflection),glm::normalize(ray));
 						if (specular < 0) specular =0;
-						brightness += pow(specular,200);
+						if (specular > 1) specular = 1;
+						brightness += pow(specular,240);
 					}
 				}
-				brightness = brightness / lightSources.size();
+				brightness = brightness / (lightSources.size());
 				brightness += 0.1; //universal suppliment
 				if (brightness > 1) brightness =1;
 				Colour newColour;
@@ -850,16 +842,13 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 			RayTriangleIntersection inter = getClosestIntersection(ray,cameraPos,triangles,0,0,0,phong);
 			//std::cout << "made it out first ray trace\n";
 			if (inter.distanceFromCamera < 1000){
-
-				if (phong) {
-					float brightness =0;
-					for (glm::vec3 lightSource : lightSources) {
-
-						glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
-						RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0,1);
-						
-
-						if (shadowInter.distanceFromCamera > 1) {
+				
+				float brightness =0;
+				for (glm::vec3 lightSource : lightSources) {
+					glm::vec3 shadowRay = (lightSource - inter.intersectionPoint); // / rayInvScalar;
+					RayTriangleIntersection shadowInter = getClosestIntersection(shadowRay,inter.intersectionPoint,triangles,1,0,0,1);
+					if (shadowInter.distanceFromCamera > 1) {
+						if (phong) {
 							//------proximity---------
 							brightness += 1 / (10* ( pow(glm::length(shadowRay),2))); 
 							//----angle of incidence--
@@ -874,24 +863,20 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 							float specular = glm::dot(glm::normalize(reflection),glm::normalize(-ray));
 							if (specular < 0) specular =0;
 							brightness += pow(specular,240);
-						}
+						} else brightness += 1;
 					}
-		
-					
-					brightness = brightness / lightSources.size();
-					brightness += 0.1; //universal suppliment
-					if (brightness > 1) brightness =1;
-					
-					Colour colour = inter.colour;
-					uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
-					window.setPixelColour(x,y,colour_32);
-				} else {
-					Colour colour = inter.colour;
-					uint32_t colour_32 = (255 << 24) + (int(round(colour.red)) << 16) + (int(round(colour.green)) << 8) + int(round(colour.blue));
-					window.setPixelColour(x,y,colour_32);
 				}
+				brightness = brightness / lightSources.size();
+				brightness += 0.1; //universal suppliment
+				if (brightness > 1) brightness =1;
 
-
+				//std::cout << brightness << "\n";
+				Colour colour;
+				colour = inter.colour;
+				
+				uint32_t colour_32 = (255 << 24) + (int(round(colour.red * brightness)) << 16) + (int(round(colour.green * brightness)) << 8) + int(round(colour.blue * brightness));
+				window.setPixelColour(x,y,colour_32);
+			
 				
 			} 
 			//std::cout << "made it end of drawRayTrace trace\n";
@@ -1204,22 +1189,13 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 
 			std::cout << "cameraPos: " << cameraPos.x<<", " <<cameraPos.y<<", " <<cameraPos.z << std::endl;
 			std::cout << "camera Orientation: " << std::endl;
-			for (size_t i = 0; i < 3; i++)
-			{
-				for (size_t j = 0; j < 3; j++)
-				{
+			for (size_t i = 0; i < 3; i++){
+				for (size_t j = 0; j < 3; j++){
 					std::cout << cameraOrientation[i][j] << ",";
 				}
 				std::cout<<"\n";
 			}
-			
-
-
-		
 			std::cout << "ROTATE Y COUNTER-CLOCKWISE" << std::endl;
-
-
-
 		} else if (event.key.keysym.sym == SDLK_r) {
 
 			glm::vec3 lookAtPoint = glm::vec3(0,0,0);
@@ -1287,10 +1263,53 @@ void handleEvent(SDL_Event event, DrawingWindow &window,std::vector<ModelTriangl
 
 }
 
+void saveCamera(std::string filename, glm::vec3 cameraPos, glm::mat3 cameraOrientation){
+	std::ofstream myfile(filename);
+    if(myfile.is_open())
+    {	
+		myfile<< "o ";
+		for (size_t y = 0; y < 3; y++){
+			for (size_t x = 0; x < 3; x++){
+				myfile << cameraOrientation[x][y]  << " ";
+			}
+		}
+		myfile<< std::endl;
+		myfile << "c " << cameraPos.x << " " << cameraPos.y << " " << cameraPos.z;
+	}
+        myfile.close(); 
+}
+
+void loadCamera(std::string filename,glm::vec3 &cameraPos, glm::mat3 &cameraOrientation){
+	std::ifstream MyReadFileMtl(filename);
+	std::vector<std::string> sections;
+	std::string line;
+	Colour colour;
+	while (getline (MyReadFileMtl, line)) {
+		sections = split(line, ' ');
+		if (sections.size()>0) {
+			if (sections[0] == "o") {
+				int count = 1;
+				for (size_t y = 0; y < 3; y++){
+					for (size_t x = 0; x < 3; x++){
+						cameraOrientation[x][y] = stof(sections[count]);
+						count++;
+					}
+				}
+			} else if (sections[0] == "c") {
+				cameraPos.x = stof(sections[1]);
+				cameraPos.y = stof(sections[2]);
+				cameraPos.z = stof(sections[3]);
+ 			}
+		}
+		sections.clear();
+	}
+	MyReadFileMtl.close();
+}
+
 int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
-
+	std::string cameraFilename = "camera";
 	const float objScaler = 0.35;
 	
 	/* std::vector<ModelTriangle> triangles = loadObj("sphere.obj","sphere.mtl",objScaler); 
@@ -1306,13 +1325,12 @@ int main(int argc, char *argv[]) {
 
 	std::vector<glm::vec3> lightSources;
 	lightSources.push_back(lightSource);
-
-	/* float lightIncrement =  0.05;
+	float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
 		}
-	}  */
+	}   
 
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
@@ -1320,14 +1338,22 @@ int main(int argc, char *argv[]) {
 		0, 1, 0, // second column		     y |   0   ,  1  ,    0    |
 		0, 0, 1  // third column			 z |   0   ,  0  ,    1    |
 	);
-	
+
+	saveCamera(cameraFilename,cameraPos,camOrientation);
+	loadCamera(cameraFilename, cameraPos, camOrientation);
+	std::cout << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << "\n";
+ 	for (size_t i = 0; i < 3; i++){
+		for (size_t j = 0; j < 3; j++){
+			std::cout << camOrientation[i][j] << ",";
+		}
+		std::cout<<"\n";
+	}
 	int renderTypeIndex = 0;
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window,triangles,lightSources ,cameraPos, camOrientation,renderTypeIndex);
-		//drawRayTrace(window, triangles, cameraPos,camOrientation);
-		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
+
 		if (renderTypeIndex == 0) {		
 			drawWireframeScene(window,triangles,cameraPos,camOrientation);
 			/* for (int i = 0; i < 61; i++){
@@ -1352,7 +1378,7 @@ int main(int argc, char *argv[]) {
 			std::cin >> x;  */
 		} else if(renderTypeIndex == 1) {
 			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
-			 for (int i = 61; i < 122; i++){
+			/*  for (int i = 61; i < 122; i++){
 				drawRasterisedScene(window,triangles,cameraPos,camOrientation);
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
@@ -1371,25 +1397,35 @@ int main(int argc, char *argv[]) {
 				window.renderFrame();
 			}
 			int x;
-			std::cin >> x; 
+			std::cin >> x;  */
 			
 		} else if (renderTypeIndex == 2) {
-			
+			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,0);
+		 	/* for (int i = 0; i < 61; i++){
+				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,0);
 
-			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
+				std::string filename = "";
+				int zeros = 5- int(std::to_string(i).size());
+				for (int i = 0; i < zeros;i++) filename+="0"; 
+				filename += std::to_string(i);
+				window.savePPM("video/" + filename + ".ppm");
+				saveCamera(cameraFilename,cameraPos,camOrientation);
 
-			/*window.renderFrame();
-			std::cout<< "Ray trace scene rendered! Enter Y to continue...\n";
-			char ok;
-			std::cin >> ok;
-			renderTypeIndex = 0; */
+				//const float theta = M_PI/30 ; 
+				float xInc = 0.0166667;
+				float zInc = 0.0333333;
+				cameraPos.z -=zInc;
+				cameraPos.x += xInc;
+				lookAt(camOrientation,cameraPos, glm::vec3(0,0,0));
+				window.renderFrame();
+			}
+			int x;
+			std::cin >> x;    */
+
 		}
+
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
-		
 		window.renderFrame();
 		
-		/* std::cout << "Render complete!\n";
-		int x;
-		std::cin >> x; */
 	}
 }
