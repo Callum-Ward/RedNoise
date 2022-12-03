@@ -134,7 +134,7 @@ f 62/ 63/ 64/
 
 o sphere
 surface smooth
-usemtl Reflective
+usemtl Red
 v -1.15797 -2.70959 1.15797
 v -1.42857 -2.70959 1.04589
 v -1.69917 -2.70959 1.15797

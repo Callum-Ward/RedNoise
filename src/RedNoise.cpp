@@ -1324,13 +1324,13 @@ int main(int argc, char *argv[]) {
 	glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
 
 	std::vector<glm::vec3> lightSources;
-	lightSources.push_back(lightSource);
-	float lightIncrement =  0.05;
+	//lightSources.push_back(lightSource);
+ 	float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
 		}
-	}    
+	}     
 
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
@@ -1399,13 +1399,15 @@ int main(int argc, char *argv[]) {
 			std::cin >> x;  */
 			
 		} else if (renderTypeIndex == 2) {
-			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
-		/* 	 std::cout << "before\n";
- 			
 
- 			cameraPos = glm::vec3(-0.5,0.1,2);
+			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
+
 			lookAt(camOrientation,cameraPos,sphereV);
 			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
+
+		 	std::cout << "before\n";
+ 			cameraPos = glm::vec3(-0.5,0.1,2);
+			lookAt(camOrientation,cameraPos,sphereV);
 
 			std::cout << "after\n";
 			for (size_t y = 0; y < 3; y++){
@@ -1426,9 +1428,9 @@ int main(int argc, char *argv[]) {
 			window.renderFrame(); 
 			std::cout << "done\n";
 			int x;
-			std::cin >> x; */
+			std::cin >> x; 
 
-			for (int i = 10; i < 30; i++){
+			/* for (int i = 0; i < 20; i++){
 				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
 				lookAt(camOrientation,cameraPos,sphereV);
 				std::string filename = "";
@@ -1437,16 +1439,16 @@ int main(int argc, char *argv[]) {
 				filename += std::to_string(i);
 				window.savePPM("images/" + filename + ".ppm");
 				saveCamera(cameraFilename,cameraPos,camOrientation);
-				cameraPos.x -= 0.075;
-				cameraPos.y += 0.05;
-				cameraPos.z -= 0.05;
+				cameraPos.x -= 0.0009868;
+				cameraPos.y -= 0.028947;
+				cameraPos.z -= 0.055263;
 
 				window.renderFrame();
 			}
 			std::cout << "done\n";
 			int x;
-			std::cin >> x;   
-
+			std::cin >> x;    
+ */
 		}
 
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
