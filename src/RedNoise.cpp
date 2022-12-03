@@ -1324,7 +1324,7 @@ int main(int argc, char *argv[]) {
 	glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
 
 	std::vector<glm::vec3> lightSources;
-	//lightSources.push_back(lightSource);
+	lightSources.push_back(lightSource);
 	float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
@@ -1399,30 +1399,15 @@ int main(int argc, char *argv[]) {
 			std::cin >> x;  */
 			
 		} else if (renderTypeIndex == 2) {
-			/* std::cout << "before\n";
- 			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
-			cameraPos = glm::vec3(1,0,3);
-			glm::mat3 orig = camOrientation;
-			for (size_t y = 0; y < 3; y++){
-				for (size_t x = 0; x < 3; x++){
-					std::cout << camOrientation[y][x] << ", ";
-				}
-				std::cout << "\n";
-			}  
-			camOrientation[0][0] += 0.0025052;
-			camOrientation[0][2] += 0.008834;
-			camOrientation[1][0] -= 0.002348;
-			camOrientation[1][1] -= 0.0005322;
-			camOrientation[1][2] -= 0.01003;
-			camOrientation[2][0] -= 0.008956;
-			camOrientation[2][1] += 0.0103;
-			camOrientation[2][2] += 0.001982; */
+			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
+		/* 	 std::cout << "before\n";
+ 			
 
-			//lookAt(camOrientation,cameraPos,glm::vec3(0,0,0));
-			//saveCamera(cameraFilename,cameraPos,camOrientation);
+ 			cameraPos = glm::vec3(-0.5,0.1,2);
+			lookAt(camOrientation,cameraPos,sphereV);
+			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
 
-
-		/* 	std::cout << "after\n";
+			std::cout << "after\n";
 			for (size_t y = 0; y < 3; y++){
 				for (size_t x = 0; x < 3; x++){
 					std::cout << camOrientation[y][x] << ", ";
@@ -1438,40 +1423,29 @@ int main(int argc, char *argv[]) {
 				std::cout << "\n";
 			}   
 			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
-			window.renderFrame(); */
-
+			window.renderFrame(); 
 			std::cout << "done\n";
 			int x;
-			std::cin >> x; 
+			std::cin >> x; */
 
-			/* for (int i = 0; i < 10; i++){
+			for (int i = 10; i < 30; i++){
 				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
-
+				lookAt(camOrientation,cameraPos,sphereV);
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
 				for (int i = 0; i < zeros;i++) filename+="0"; 
 				filename += std::to_string(i);
 				window.savePPM("images/" + filename + ".ppm");
 				saveCamera(cameraFilename,cameraPos,camOrientation);
-				camOrientation[0][0] += 0.0025052;
-				camOrientation[0][2] += 0.008834;
-				camOrientation[1][0] -= 0.002348;
-				camOrientation[1][1] -= 0.0005322;
-				camOrientation[1][2] -= 0.01003;
-				camOrientation[2][0] -= 0.008956;
-				camOrientation[2][1] += 0.0103;
-				camOrientation[2][2] += 0.001982;
-				for (size_t y = 0; y < 3; y++){
-					for (size_t x = 0; x < 3; x++){
-						std::cout << camOrientation[y][x] << ", ";
-					}
-					std::cout << "\n";
-				} 
+				cameraPos.x -= 0.075;
+				cameraPos.y += 0.05;
+				cameraPos.z -= 0.05;
+
 				window.renderFrame();
 			}
 			std::cout << "done\n";
 			int x;
-			std::cin >> x;   */
+			std::cin >> x;   
 
 		}
 
