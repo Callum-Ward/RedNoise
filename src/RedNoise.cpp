@@ -1330,17 +1330,15 @@ int main(int argc, char *argv[]) {
 		//drawRasterisedScene(window, triangles, cameraPos,camOrientation);
 		if (renderTypeIndex == 0) {		
 			drawWireframeScene(window,triangles,cameraPos,camOrientation);
-		} else if(renderTypeIndex == 1) {
-			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
-			for (int i = 73; i < 146; i++){
-				drawRasterisedScene(window,triangles,cameraPos,camOrientation);
+			/* for (int i = 0; i < 61; i++){
+				drawWireframeScene(window,triangles,cameraPos,camOrientation);
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
 
 				for (int i = 0; i < zeros;i++) filename+="0"; 
 				filename += std::to_string(i);
-				window.savePPM("video/" + filename);
-				const float theta = M_PI/36 ; // 9 degree increments
+				window.savePPM("video/" + filename + ".ppm");
+				const float theta = M_PI/30 ; // 9 degree increments
 				glm::mat3 clock_rot = glm::mat3(
 					cos(-theta), 0, -sin(-theta), // first column (not row!)
 					0, 1, 0, // second column
@@ -1351,7 +1349,29 @@ int main(int argc, char *argv[]) {
 				window.renderFrame();
 			}
 			int x;
-			std::cin >> x;
+			std::cin >> x;  */
+		} else if(renderTypeIndex == 1) {
+			drawRasterisedScene(window,triangles,cameraPos,camOrientation);
+			 for (int i = 61; i < 122; i++){
+				drawRasterisedScene(window,triangles,cameraPos,camOrientation);
+				std::string filename = "";
+				int zeros = 5- int(std::to_string(i).size());
+
+				for (int i = 0; i < zeros;i++) filename+="0"; 
+				filename += std::to_string(i);
+				window.savePPM("video/" + filename + ".ppm");
+				const float theta = M_PI/30 ; // 9 degree increments
+				glm::mat3 clock_rot = glm::mat3(
+					cos(-theta), 0, -sin(-theta), // first column (not row!)
+					0, 1, 0, // second column
+					sin(-theta),0, cos(-theta)  // third column
+				);
+				cameraPos = cameraPos * clock_rot;
+				lookAt(camOrientation,cameraPos, glm::vec3(0,0,0));
+				window.renderFrame();
+			}
+			int x;
+			std::cin >> x; 
 			
 		} else if (renderTypeIndex == 2) {
 			
