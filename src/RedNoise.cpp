@@ -630,7 +630,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				float bestU = u;
 				float bestV = v;
 				if (phong && !shadowRay) {
-					if (theRay.intersectedTriangle.isTexture==1 && theRay.intersectedTriangle.surfaceType == "flat" || theRay.intersectedTriangle.surfaceType == "map") {
+					if (theRay.intersectedTriangle.isTexture==1 && (theRay.intersectedTriangle.surfaceType == "flat" || theRay.intersectedTriangle.surfaceType == "map")) {
 						float w = 1 - (bestU+ bestV);
 						float xTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].x)+(bestU* theRay.intersectedTriangle.texturePoints[1].x)+(bestV*theRay.intersectedTriangle.texturePoints[2].x);
 						float yTxtPoint = (w * theRay.intersectedTriangle.texturePoints[0].y)+(bestU* theRay.intersectedTriangle.texturePoints[1].y)+(bestV*theRay.intersectedTriangle.texturePoints[2].y);
@@ -759,6 +759,7 @@ void lookAt(glm::mat3 &cameraOrientation,glm::vec3 cameraPos ,glm::vec3 point) {
   	//glm::vec3 right = glm::vec3(1,0,0); //CP vertical with forward
 	//std::cout << "right: " << right.x << "," << right.y << "," << right.z << "\n";
   	glm::vec3 up = glm::normalize(glm::cross(forward,right)); //CP vertical with forward
+  	//glm::vec3 up = glm::normalize(glm::vec3(0,1,0)); //CP vertical with forward
 	//glm::vec3 up = glm::cross(forward,right);
 	//std::cout << "up: " << up.x << "," << up.y << "," << up.z << "\n";
 
@@ -810,7 +811,6 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 						glm::vec3 ray = glm::normalize(cameraPos) - glm::normalize(triangles[trianglePos].vertices[vertexPos]);
 						float specular = glm::dot(glm::normalize(reflection),glm::normalize(ray));
 						if (specular < 0) specular =0;
-						if (specular > 1) specular = 1;
 						brightness += pow(specular,240);
 					}
 				}
@@ -1324,13 +1324,13 @@ int main(int argc, char *argv[]) {
 	glm::vec3 lightSource = glm::vec3(0,0.75,0); //box light location
 
 	std::vector<glm::vec3> lightSources;
-	lightSources.push_back(lightSource);
+	//lightSources.push_back(lightSource);
 	float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
 		}
-	}   
+	}    
 
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
@@ -1338,8 +1338,7 @@ int main(int argc, char *argv[]) {
 		0, 1, 0, // second column		     y |   0   ,  1  ,    0    |
 		0, 0, 1  // third column			 z |   0   ,  0  ,    1    |
 	);
-
-	saveCamera(cameraFilename,cameraPos,camOrientation);
+	//saveCamera(cameraFilename,cameraPos,camOrientation);
 	loadCamera(cameraFilename, cameraPos, camOrientation);
 	std::cout << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << "\n";
  	for (size_t i = 0; i < 3; i++){
@@ -1400,27 +1399,79 @@ int main(int argc, char *argv[]) {
 			std::cin >> x;  */
 			
 		} else if (renderTypeIndex == 2) {
-			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,0);
-		 	/* for (int i = 0; i < 61; i++){
-				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,0);
+			/* std::cout << "before\n";
+ 			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
+			cameraPos = glm::vec3(1,0,3);
+			glm::mat3 orig = camOrientation;
+			for (size_t y = 0; y < 3; y++){
+				for (size_t x = 0; x < 3; x++){
+					std::cout << camOrientation[y][x] << ", ";
+				}
+				std::cout << "\n";
+			}  
+			camOrientation[0][0] += 0.0025052;
+			camOrientation[0][2] += 0.008834;
+			camOrientation[1][0] -= 0.002348;
+			camOrientation[1][1] -= 0.0005322;
+			camOrientation[1][2] -= 0.01003;
+			camOrientation[2][0] -= 0.008956;
+			camOrientation[2][1] += 0.0103;
+			camOrientation[2][2] += 0.001982; */
+
+			//lookAt(camOrientation,cameraPos,glm::vec3(0,0,0));
+			//saveCamera(cameraFilename,cameraPos,camOrientation);
+
+
+		/* 	std::cout << "after\n";
+			for (size_t y = 0; y < 3; y++){
+				for (size_t x = 0; x < 3; x++){
+					std::cout << camOrientation[y][x] << ", ";
+				}
+				std::cout << "\n";
+			}   
+			glm::mat3 newOrien = camOrientation - orig;
+			std::cout << "difference\n";
+			for (size_t y = 0; y < 3; y++){
+				for (size_t x = 0; x < 3; x++){
+					std::cout << camOrientation[y][x] << ", ";
+				}
+				std::cout << "\n";
+			}   
+			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
+			window.renderFrame(); */
+
+			std::cout << "done\n";
+			int x;
+			std::cin >> x; 
+
+			/* for (int i = 0; i < 10; i++){
+				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
 
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
 				for (int i = 0; i < zeros;i++) filename+="0"; 
 				filename += std::to_string(i);
-				window.savePPM("video/" + filename + ".ppm");
+				window.savePPM("images/" + filename + ".ppm");
 				saveCamera(cameraFilename,cameraPos,camOrientation);
-
-				//const float theta = M_PI/30 ; 
-				float xInc = 0.0166667;
-				float zInc = 0.0333333;
-				cameraPos.z -=zInc;
-				cameraPos.x += xInc;
-				lookAt(camOrientation,cameraPos, glm::vec3(0,0,0));
+				camOrientation[0][0] += 0.0025052;
+				camOrientation[0][2] += 0.008834;
+				camOrientation[1][0] -= 0.002348;
+				camOrientation[1][1] -= 0.0005322;
+				camOrientation[1][2] -= 0.01003;
+				camOrientation[2][0] -= 0.008956;
+				camOrientation[2][1] += 0.0103;
+				camOrientation[2][2] += 0.001982;
+				for (size_t y = 0; y < 3; y++){
+					for (size_t x = 0; x < 3; x++){
+						std::cout << camOrientation[y][x] << ", ";
+					}
+					std::cout << "\n";
+				} 
 				window.renderFrame();
 			}
+			std::cout << "done\n";
 			int x;
-			std::cin >> x;    */
+			std::cin >> x;   */
 
 		}
 
