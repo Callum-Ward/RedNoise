@@ -236,9 +236,7 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 		if(vertex == 0 || vertex == 1) q=0; //favour smaller y vertices when choosing starting point of line
 		if (vertex ==2) q=1; //favour v2 when choosing a line endpoint
 	}  
-
 	float c; //row of the texture image we should use
-
 
 	c = ( (c0*( 1-q) )/z0 + (c1*q)/z1 ) / ( (1-q)/z0 + q/z1 );
 
@@ -252,7 +250,6 @@ TexturePoint getCorrectedTexturePoint(CanvasTriangle triangle,CanvasPoint point,
 		int x; 
 		std::cin >> x;
 	}
-
 
 	int xTexture = smallV.texturePoint.x+ round((bigV.texturePoint.x - smallV.texturePoint.x)*q);
 	int yTexture = smallV.texturePoint.y+ round((bigV.texturePoint.y - smallV.texturePoint.y)*q);
@@ -457,14 +454,14 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	Colour curCol;
 	std::string surfaceType;
 	std::ifstream MyReadFile(objFilename);
-	glm::vec3 sphereV = glm::vec3(0,0,0);
+	glm::vec3 sphereV = glm::vec3(0,-1,0);
 	while (getline (MyReadFile, line)) {
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 
 			if (sections[0] == "v") {
 				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
-				if (newV.y > sphereV.y && objectName == "robot" ){
+				if (newV.y > sphereV.y && objectName == "short_box" ){
 					sphereV = newV;
 				}
 				vertices.push_back(newV);		
@@ -521,7 +518,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	MyReadFile.close();
 	std::cout << "textpoint read: " << txtrPoints.size() << "\n";
 	std::cout << "Loaded " << triangles.size() << " triangles\n";
-	std::cout << "robot top: " << sphereV.x << ", " << sphereV.y << ", " << sphereV.z << "\n";
+	std::cout << "box top: " << sphereV.x << ", " << sphereV.y << ", " << sphereV.z << "\n";
 
 
 	std::array<glm::vec3, 3> normals;
@@ -853,12 +850,12 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 					if (shadowInter.distanceFromCamera > 1) {
 						if (phong) {
 							//------proximity---------
-							brightness += 1 / (11* ( pow(glm::length(shadowRay),2))); 
+							brightness += 1 / (6* ( pow(glm::length(shadowRay),2))); 
 							//----angle of incidence--
 							float incidentDot= glm::dot(glm::normalize(inter.normal),glm::normalize(shadowRay));
 							//float incidentDot = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
 							if (incidentDot < 0) incidentDot = 0;
-							brightness += pow(incidentDot,2)/1.5;
+							brightness += pow(incidentDot,3)/2;
 							
 							//------specular----------
 							glm::vec3 reflection = (-glm::normalize(shadowRay)) - (2.0f * glm::normalize(inter.normal) * (glm::dot(-glm::normalize(shadowRay),glm::normalize(inter.normal))));
@@ -1333,7 +1330,7 @@ int main(int argc, char *argv[]) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
 		}
-	}     
+	}   
 
 	glm::mat3 camOrientation = glm::mat3(
 		//									   | Right | Up  | Forward |
@@ -1397,25 +1394,26 @@ int main(int argc, char *argv[]) {
 			std::cin >> x;  */
 			
 		} else if (renderTypeIndex == 2) {
-
+			glm::vec3 origin = glm::vec3(0,0,0);
 			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
 			glm::vec3 robotV = glm::vec3(0.220588, 0.110471, -0.483322);
+			glm::vec3 shortBox = glm::vec3(-0.7, -0.381063, 0.25);
 
-			//cameraPos = glm::vec3(-0.5, 0, 0.5);
+			//cameraPos = glm::vec3(0, 0, 5);
 
 			glm::mat3 orig = camOrientation;
 
-			//lookAt(camOrientation,cameraPos,robotV);
-			//drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
-
-	 	 	/* std::cout << "before\n";
+			//lookAt(camOrientation,cameraPos,origin);
+			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
+/* 
+	 	 	std::cout << "before\n";
  			for (size_t y = 0; y < 3; y++){
 				for (size_t x = 0; x < 3; x++){
 					std::cout << camOrientation[y][x] << ", ";
 				}
 				std::cout << "\n";
 			}   
-			lookAt(camOrientation,cameraPos,robotV);
+			lookAt(camOrientation,cameraPos,origin);
 			std::cout << "after\n";
 			for (size_t y = 0; y < 3; y++){
 				for (size_t x = 0; x < 3; x++){
@@ -1435,36 +1433,35 @@ int main(int argc, char *argv[]) {
 			window.renderFrame(); 
 			std::cout << "done\n";
 			int x;
-			std::cin >> x;   */  
+			std::cin >> x;     */
 
  		
-	 	 	for (int i = 20; i < 40; i++){
+		/*	 	for (int i = 0; i < 40; i++){
 				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
-				lookAt(camOrientation,cameraPos,robotV);
+				lookAt(camOrientation,cameraPos,origin);
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
 				for (int i = 0; i < zeros;i++) filename+="0"; 
 				filename += std::to_string(i);
 				window.savePPM("images/" + filename + ".ppm");
 				saveCamera(cameraFilename,cameraPos,camOrientation);
-				cameraPos.x -= 0.025;
-
-				/*  cameraPos.y -= 0.0102564;
-				cameraPos.z -= 0.0128205;
-				camOrientation[0][0] += 0.0153146;
-				camOrientation[0][2] -= 0.0308841;
-				camOrientation[1][0] -= 0.0126346;
-				camOrientation[1][1] += 0.00426179;
-				camOrientation[1][2] += 0.00789274;
-				camOrientation[2][0] += 0.0267369;
-				camOrientation[2][1] -= 0.017132;
-				camOrientation[2][2] += 0.0167801; */
+				cameraPos.x += 0.02564102;
+				cameraPos.y -= 0.005128205;
+				cameraPos.z += 0.064102564;
+		 	camOrientation[0][0] += 0.00262323;
+				camOrientation[0][2] -= 0.00492382;
+				camOrientation[1][0] += 0.0020404;
+				camOrientation[1][1] += 0.0000392;
+				camOrientation[1][2] -= 0.003721153;
+				camOrientation[2][0] += 0.004881794;
+				camOrientation[2][1] += 0.0042688;
+				camOrientation[2][2] += 0.002648487;  
 				std::cout << "frame complete\n"; 
 				window.renderFrame();
 			}
 			std::cout << "done\n";
 			int x;
-			std::cin >> x;    
+			std::cin >> x;      */
  
 		} 
 
