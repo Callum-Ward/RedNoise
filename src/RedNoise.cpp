@@ -457,13 +457,16 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	Colour curCol;
 	std::string surfaceType;
 	std::ifstream MyReadFile(objFilename);
-	glm::vec3 sphereV = glm::vec3(0,3,0);
+	glm::vec3 sphereV = glm::vec3(0,0,0);
 	while (getline (MyReadFile, line)) {
 		sections = split(line, ' ');
 		if (sections.size()>0) {
 
 			if (sections[0] == "v") {
 				glm::vec3 newV = glm::vec3(-scale*std::stof(sections[1]),scale*std::stof(sections[2]),scale*std::stof(sections[3]));
+				if (newV.y > sphereV.y && objectName == "robot" ){
+					sphereV = newV;
+				}
 				vertices.push_back(newV);		
 			} else if (sections[0] == "vt") {
 				TexturePoint tp = TexturePoint(std::stof(sections[1]),std::stof(sections[2]));
@@ -518,7 +521,7 @@ std::vector<ModelTriangle> loadObj(std::string objFilename, std::string mtlFilen
 	MyReadFile.close();
 	std::cout << "textpoint read: " << txtrPoints.size() << "\n";
 	std::cout << "Loaded " << triangles.size() << " triangles\n";
-	std::cout << "sphere bottom: " << sphereV.x << ", " << sphereV.y << ", " << sphereV.z << "\n";
+	std::cout << "robot top: " << sphereV.x << ", " << sphereV.y << ", " << sphereV.z << "\n";
 
 
 	std::array<glm::vec3, 3> normals;
@@ -693,7 +696,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				
 				if (refractedRay == glm::vec3(0,0,0)){ //total internal reflection
 					glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(-theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(-theRay.normal) ) ) );	
-					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount,0,1);
+					theRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,fresnelCount,1,1);
 				} else {
 
 					float reflecMul = 0;
@@ -706,7 +709,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 					}
 
 
-					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount,0,1);
+					theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,fresnelCount,1,1);
 					Colour tC = theRay.colour; //transmission colour
 					Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
 					theRay.colour = updatedColour;
@@ -721,7 +724,7 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray, glm::vec3 cameraPo
 				glm::vec3 reflection = (glm::normalize(ray)) - (2.0f * glm::normalize(theRay.normal) * (glm::dot(glm::normalize(ray), glm::normalize(theRay.normal) ) ) );
 				RayTriangleIntersection reflectRay = getClosestIntersection(glm::normalize(reflection),theRay.intersectionPoint,triangles,0,0,1,1);	
 			
-				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,0,1);
+				theRay = getClosestIntersection(glm::normalize(refractedRay),theRay.intersectionPoint,triangles,0,0,1,1);
 				Colour tC = theRay.colour; //transmission colour
 				Colour rC = reflectRay.colour;
 				Colour updatedColour = Colour((1-reflecMul)*tC.red + reflecMul*rC.red, (1-reflecMul)*tC.green + reflecMul*rC.green,(1-reflecMul)*tC.blue + reflecMul*rC.blue );
@@ -850,7 +853,7 @@ void drawRayTrace(DrawingWindow &window,std::vector<ModelTriangle> &triangles, s
 					if (shadowInter.distanceFromCamera > 1) {
 						if (phong) {
 							//------proximity---------
-							brightness += 1 / (10* ( pow(glm::length(shadowRay),2))); 
+							brightness += 1 / (11* ( pow(glm::length(shadowRay),2))); 
 							//----angle of incidence--
 							float incidentDot= glm::dot(glm::normalize(inter.normal),glm::normalize(shadowRay));
 							//float incidentDot = glm::dot(glm::normalize(inter.intersectedTriangle.normal),-glm::normalize(shadowRay)) ;
@@ -1325,7 +1328,7 @@ int main(int argc, char *argv[]) {
 
 	std::vector<glm::vec3> lightSources;
 	//lightSources.push_back(lightSource);
- 	float lightIncrement =  0.05;
+  	float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
@@ -1339,14 +1342,9 @@ int main(int argc, char *argv[]) {
 		0, 0, 1  // third column			 z |   0   ,  0  ,    1    |
 	);
 	//saveCamera(cameraFilename,cameraPos,camOrientation);
+
 	loadCamera(cameraFilename, cameraPos, camOrientation);
 	std::cout << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << "\n";
- 	for (size_t i = 0; i < 3; i++){
-		for (size_t j = 0; j < 3; j++){
-			std::cout << camOrientation[i][j] << ",";
-		}
-		std::cout<<"\n";
-	}
 	int renderTypeIndex = 0;
 
 	while (true) {
@@ -1401,14 +1399,23 @@ int main(int argc, char *argv[]) {
 		} else if (renderTypeIndex == 2) {
 
 			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
+			glm::vec3 robotV = glm::vec3(0.220588, 0.110471, -0.483322);
 
-			lookAt(camOrientation,cameraPos,sphereV);
-			drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
+			//cameraPos = glm::vec3(0.5, 0, 0.5);
 
-		 	std::cout << "before\n";
- 			cameraPos = glm::vec3(-0.5,0.1,2);
-			lookAt(camOrientation,cameraPos,sphereV);
+			glm::mat3 orig = camOrientation;
 
+			//lookAt(camOrientation,cameraPos,robotV);
+			//drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
+
+/* 	 	 	std::cout << "before\n";
+ 			for (size_t y = 0; y < 3; y++){
+				for (size_t x = 0; x < 3; x++){
+					std::cout << camOrientation[y][x] << ", ";
+				}
+				std::cout << "\n";
+			}   
+			lookAt(camOrientation,cameraPos,robotV);
 			std::cout << "after\n";
 			for (size_t y = 0; y < 3; y++){
 				for (size_t x = 0; x < 3; x++){
@@ -1420,7 +1427,7 @@ int main(int argc, char *argv[]) {
 			std::cout << "difference\n";
 			for (size_t y = 0; y < 3; y++){
 				for (size_t x = 0; x < 3; x++){
-					std::cout << camOrientation[y][x] << ", ";
+					std::cout << newOrien[y][x] << ", ";
 				}
 				std::cout << "\n";
 			}   
@@ -1428,27 +1435,37 @@ int main(int argc, char *argv[]) {
 			window.renderFrame(); 
 			std::cout << "done\n";
 			int x;
-			std::cin >> x; 
+			std::cin >> x;   */  
 
-			/* for (int i = 0; i < 20; i++){
+ 		
+	 	/* 	for (int i = 0; i < 40; i++){
 				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
-				lookAt(camOrientation,cameraPos,sphereV);
+				//lookAt(camOrientation,cameraPos,sphereV);
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
 				for (int i = 0; i < zeros;i++) filename+="0"; 
 				filename += std::to_string(i);
 				window.savePPM("images/" + filename + ".ppm");
 				saveCamera(cameraFilename,cameraPos,camOrientation);
-				cameraPos.x -= 0.0009868;
-				cameraPos.y -= 0.028947;
-				cameraPos.z -= 0.055263;
+				cameraPos.x += 0.0241986;
+				cameraPos.y -= 0.0102564;
+				cameraPos.z -= 0.0128205;
 
+				camOrientation[0][0] += 0.0153146;
+				camOrientation[0][2] -= 0.0308841;
+				camOrientation[1][0] -= 0.0126346;
+				camOrientation[1][1] += 0.00426179;
+				camOrientation[1][2] += 0.00789274;
+				camOrientation[2][0] += 0.0267369;g
+				camOrientation[2][1] -= 0.017132;
+				camOrientation[2][2] += 0.0167801;
+				std::cout << "frame complete\n";
 				window.renderFrame();
 			}
 			std::cout << "done\n";
 			int x;
-			std::cin >> x;    
- */
+			std::cin >> x;      
+  */
 		}
 
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
