@@ -66,7 +66,7 @@ f 22/ 23/ 24/
 
 o short_box
 surface flat
-usemtl Metal
+usemtl Reflective
 v 2.05241 -1.08875 1.58365
 v 2.53241 -1.09002 -0.0163406
 v 0.952416 -1.0904 -0.486341
@@ -134,7 +134,7 @@ f 62/ 63/ 64/
 
 o sphere
 surface smooth
-usemtl Red
+usemtl Glass
 v -1.15797 -2.70959 1.15797
 v -1.42857 -2.70959 1.04589
 v -1.69917 -2.70959 1.15797

@@ -1328,7 +1328,7 @@ int main(int argc, char *argv[]) {
 
 	std::vector<glm::vec3> lightSources;
 	//lightSources.push_back(lightSource);
-  	float lightIncrement =  0.05;
+    float lightIncrement =  0.05;
 	for (int x = -2; x < 3; x++) {
 		for (int z = -2; z < 3; z++) {
 			lightSources.push_back(glm::vec3(lightSource[0] + (x * lightIncrement), lightSource[1], lightSource[2] + (z * lightIncrement)));
@@ -1401,14 +1401,14 @@ int main(int argc, char *argv[]) {
 			glm::vec3 sphereV = glm::vec3(0.45, -0.25, 0.65);
 			glm::vec3 robotV = glm::vec3(0.220588, 0.110471, -0.483322);
 
-			//cameraPos = glm::vec3(0.5, 0, 0.5);
+			//cameraPos = glm::vec3(-0.5, 0, 0.5);
 
 			glm::mat3 orig = camOrientation;
 
 			//lookAt(camOrientation,cameraPos,robotV);
 			//drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
 
-/* 	 	 	std::cout << "before\n";
+	 	 	/* std::cout << "before\n";
  			for (size_t y = 0; y < 3; y++){
 				for (size_t x = 0; x < 3; x++){
 					std::cout << camOrientation[y][x] << ", ";
@@ -1438,35 +1438,35 @@ int main(int argc, char *argv[]) {
 			std::cin >> x;   */  
 
  		
-	 	/* 	for (int i = 0; i < 40; i++){
+	 	 	for (int i = 20; i < 40; i++){
 				drawRayTrace(window,triangles,lightSources,cameraPos,camOrientation,1);
-				//lookAt(camOrientation,cameraPos,sphereV);
+				lookAt(camOrientation,cameraPos,robotV);
 				std::string filename = "";
 				int zeros = 5- int(std::to_string(i).size());
 				for (int i = 0; i < zeros;i++) filename+="0"; 
 				filename += std::to_string(i);
 				window.savePPM("images/" + filename + ".ppm");
 				saveCamera(cameraFilename,cameraPos,camOrientation);
-				cameraPos.x += 0.0241986;
-				cameraPos.y -= 0.0102564;
-				cameraPos.z -= 0.0128205;
+				cameraPos.x -= 0.025;
 
+				/*  cameraPos.y -= 0.0102564;
+				cameraPos.z -= 0.0128205;
 				camOrientation[0][0] += 0.0153146;
 				camOrientation[0][2] -= 0.0308841;
 				camOrientation[1][0] -= 0.0126346;
 				camOrientation[1][1] += 0.00426179;
 				camOrientation[1][2] += 0.00789274;
-				camOrientation[2][0] += 0.0267369;g
+				camOrientation[2][0] += 0.0267369;
 				camOrientation[2][1] -= 0.017132;
-				camOrientation[2][2] += 0.0167801;
-				std::cout << "frame complete\n";
+				camOrientation[2][2] += 0.0167801; */
+				std::cout << "frame complete\n"; 
 				window.renderFrame();
 			}
 			std::cout << "done\n";
 			int x;
-			std::cin >> x;      
-  */
-		}
+			std::cin >> x;    
+ 
+		} 
 
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
